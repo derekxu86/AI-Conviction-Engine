@@ -25,14 +25,12 @@ async def serve_frontend():
 async def search_stock(q: str):
     if not q: return []
     results = []
-    
     clean_q = q.upper().replace('.SZ', '').replace('.SS', '').replace('.HK', '')
     
     try:
         token = "D43BF722C8E33BDC906FB84D85E326E8"
         east_url = f"https://searchapi.eastmoney.com/api/suggest/get?input={urllib.parse.quote(clean_q)}&type=14&token={token}&count=5"
         east_req = urllib.request.Request(east_url, headers={'User-Agent': 'Mozilla/5.0'})
-        
         with urllib.request.urlopen(east_req, timeout=3) as res:
             east_data = json.loads(res.read().decode('utf-8'))
             if "QuotationCodeTable" in east_data and "Data" in east_data["QuotationCodeTable"]:
@@ -40,12 +38,10 @@ async def search_stock(q: str):
                     code = item.get("Code")
                     name = item.get("Name")
                     market_type = str(item.get("MarketType"))
-                    
                     y_ticker = code
                     if market_type == "1": y_ticker = code + ".SS"
                     elif market_type == "2": y_ticker = code + ".SZ"
                     elif market_type == "3": y_ticker = code + ".HK"
-                    
                     results.append({"symbol": y_ticker, "name": name, "raw": code})
     except Exception: pass
 
@@ -87,7 +83,6 @@ def get_market_and_backtest_data(ticker, known_name=""):
             
             result = data['chart']['result'][0]
             meta = result['meta']
-            
             timestamps = result.get('timestamp', [])
             raw_prices = result['indicators']['quote'][0]['close']
             
@@ -150,9 +145,7 @@ def get_market_and_backtest_data(ticker, known_name=""):
             return {
                 "market": {
                     "name": final_name,
-                    "price": round(price, 2), 
-                    "change": round(change, 2),
-                    "change_pct": round(change_pct, 2), 
+                    "price": round(price, 2), "change": round(change, 2), "change_pct": round(change_pct, 2), 
                     "currency": meta.get('currency', 'USD'),
                     "trend": {"dates": dates_list, "prices": prices_list}
                 },
@@ -176,7 +169,6 @@ async def analyze_stock(request: AnalysisRequest):
             req_name = suggestions[0]["name"]
 
     data_pack = get_market_and_backtest_data(ticker, known_name=req_name)
-    
     if not data_pack:
         return {"error": True, "message": f"未找到标的: {original_input}。"}
 
@@ -184,51 +176,51 @@ async def analyze_stock(request: AnalysisRequest):
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
     
     company_name = data_pack['market']['name']
-    bt_info = f"Win Rate: {data_pack['backtest']['win_rate']}%, Sharpe: {data_pack['backtest']['sharpe']}, Max DD: {data_pack['backtest']['max_dd']}%"
+    bt_info = f"动量策略回测 -> 胜率: {data_pack['backtest']['win_rate']}%, 夏普: {data_pack['backtest']['sharpe']}, 最大回撤: {data_pack['backtest']['max_dd']}%"
 
-    # 【深度重构的决策智能引擎 Prompt】
-    sys_prompt = f"""You are a top-tier Quant Hedge Fund Decision Intelligence System.
-    Target Asset: 【{company_name}】 (Ticker: {ticker}).
+    sys_prompt = f"""你是一个顶级的 AI 投资决策引擎终端。
+    分析目标：【{company_name}】(代码: {ticker})。
     
-    You must output ONLY valid JSON using this EXACT structure. 
-    Analyze deeply. NO fluff. Provide actionable, hedge-fund-level insights.
+    【核心架构升级要求】：
+    1. Market Regime Engine: 必须先定义当前全局市场状态（如 Risk-On 科技强、Regime 切换等）。
+    2. Theme Rotation: 分析资金流向脉络（例如从 A 流向 B）。
+    3. Personified Agents: 五个决策者具有极其鲜明的人格立场，严禁套话。
+       - Macro Hawk: 关注宏观流动性，用数据说话。
+       - Quant Trader: 极其冷血，只看传入的回测数据({bt_info})和交易动量。
+       - Risk Officer: 永远悲观，专门挑刺黑天鹅和财报隐患。
+       - Narrative Analyst: 捕捉市场情绪和叙事炒作逻辑。
+       - Deep Value: 专门唱反调，紧盯估值。
     
+    请严格输出纯 JSON 格式：
     {{
-      "market_regime": {{
-        "current_regime": "e.g., Risk-On / Inflationary / Defensive Rotation",
-        "capital_flow": "e.g., Capital rotating from Mega-cap AI to Power Infrastructure",
-        "asset_fit": "How this specific asset fits the current regime"
+      "regime": {{
+        "current": "当前市场周期定位 (如: Risk-On 科技轮动期)",
+        "rotation_map": "资金轮动路径推演 (如: Mega-cap AI -> Power -> Industrial)"
       }},
       "conviction": {{
-        "total_score": 85,
-        "action": "STRONG BUY / BUY / HOLD / SELL / STRONG SELL",
-        "factors": {{
-          "macro_tailwind": 82,
-          "momentum": 77,
-          "institutional_flow": 80,
-          "news_sentiment": 85,
-          "valuation_risk": 61
-        }}
+        "total": 85,
+        "factors": {{"macro": 82, "momentum": 77, "flow": 80, "sentiment": 85, "valuation": 61}},
+        "timeline": {{"three_weeks_ago": 60, "two_weeks_ago": 70, "current": 85, "reason": "短期催化剂导致分数飙升"}}
       }},
       "agents": {{
-        "macro_hawk": {{"persona": "Focuses on rates, inflation, and policy.", "opinion": "Detailed thesis on liquidity and macro environment..."}},
-        "quant_trader": {{"persona": "Data-driven, looks at backtests.", "opinion": "Analyzes backtest data: {bt_info}. Evaluates momentum and trend."}},
-        "deep_value": {{"persona": "Contrarian, always pessimistic about valuations.", "opinion": "Tears apart the valuation, highlights extreme multiples or earnings risks."}}
+        "macro_hawk": "【字数80+】宏观分析...",
+        "quant_trader": "【字数80+】量化动量...",
+        "risk_officer": "【字数80+】风险提示...",
+        "narrative_analyst": "【字数80+】叙事逻辑...",
+        "deep_value": "【字数80+】深度估值..."
       }},
-      "committee_chair": {{
-        "bull_case": "Specific bullish narrative (e.g., Capex cycle accelerating)",
-        "bear_case": "Specific bearish anti-thesis (e.g., Theme overcrowded, margins compressing)",
-        "final_verdict": "Final synthesized decision."
+      "committee": {{
+        "bull_case": "具体的看多逻辑",
+        "bear_case": "具体的看空逻辑(必填)",
+        "action": "BUY/SELL/HOLD"
       }}
     }}"""
 
     data = {
         "model": "gpt-4o-mini",
-        "messages": [
-            {"role": "user", "content": sys_prompt}
-        ],
+        "messages": [{"role": "user", "content": sys_prompt}],
         "response_format": {"type": "json_object"},
-        "temperature": 0.4
+        "temperature": 0.3 
     }
 
     try:
@@ -236,10 +228,8 @@ async def analyze_stock(request: AnalysisRequest):
         with urllib.request.urlopen(req, timeout=20) as response:
             result = json.loads(response.read().decode("utf-8"))
             content = json.loads(result["choices"][0]["message"]["content"])
-            
             content["market_info"] = data_pack["market"]
-            content["market_info"]["resolved_ticker"] = ticker
             content["backtest"] = data_pack["backtest"]
             return content
     except Exception as e:
-        return {"error": True, "message": f"AI 引擎网络请求异常: {str(e)}"}
+        return {"error": True, "message": f"网络异常: {str(e)}"}
