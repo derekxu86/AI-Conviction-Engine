@@ -71,12 +71,12 @@
         <div id="resultsDashboard" class="hidden space-y-6 pt-4">
             
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="lg:col-span-2 bg-gradient-to-r from-card to-gray-900 rounded-xl p-6 border border-gray-800 shadow-lg flex flex-col justify-center">
-                    <div class="flex justify-between items-start">
+                <div class="lg:col-span-2 bg-gradient-to-r from-card to-gray-900 rounded-xl p-6 border border-gray-800 shadow-lg flex flex-col">
+                    <div class="flex justify-between items-start mb-4">
                         <div>
-                            <div class="text-xs text-gray-500 mb-1 font-bold tracking-widest uppercase">Target Asset</div>
+                            <div class="text-xs text-gray-500 mb-1 font-bold tracking-widest uppercase" id="resCompanyName">Target Asset</div>
                             <h2 class="text-4xl font-black text-white" id="resTicker">-</h2>
-                            <div class="mt-4 flex gap-3">
+                            <div class="mt-3 flex gap-3">
                                 <span class="text-xs bg-primary/20 text-primary border border-primary/30 px-2 py-1 rounded" id="radarTheme">Theme: -</span>
                                 <span class="text-xs bg-gray-800 text-gray-300 border border-gray-700 px-2 py-1 rounded" id="radarTrend">Trend: -</span>
                             </div>
@@ -86,10 +86,13 @@
                             <div id="resChange" class="text-sm font-bold mt-1 px-2 py-1 rounded inline-block bg-gray-800 text-gray-400">-</div>
                         </div>
                     </div>
+                    <div class="flex-1 w-full relative min-h-[120px] mt-2 border-t border-gray-800/50 pt-4">
+                        <canvas id="priceTrendChart"></canvas>
+                    </div>
                 </div>
 
                 <div class="bg-card rounded-xl p-5 border border-gray-800 shadow-lg flex flex-col">
-                    <div class="text-xs text-gray-500 mb-3 font-bold tracking-widest uppercase border-b border-gray-800 pb-2">Quant Validation (Momentum Strategy)</div>
+                    <div class="text-xs text-gray-500 mb-3 font-bold tracking-widest uppercase border-b border-gray-800 pb-2">Quant Validation (Momentum)</div>
                     <div class="grid grid-cols-3 gap-2 mb-3">
                         <div class="bg-[#0f172a] p-2 rounded text-center"><p class="text-[10px] text-gray-500">Win Rate</p><p class="font-bold text-emerald-400" id="btWin">-</p></div>
                         <div class="bg-[#0f172a] p-2 rounded text-center"><p class="text-[10px] text-gray-500">Sharpe</p><p class="font-bold text-white" id="btSharpe">-</p></div>
@@ -127,6 +130,7 @@
 
     <script>
         let btChart = null;
+        let priceChart = null; // 新增价格图表实例
         let searchTimeout = null;
 
         async function handleSearch(query) {
@@ -154,7 +158,6 @@
             if (!e.target.closest('.relative')) document.getElementById('searchDropdown').classList.add('hidden');
         });
 
-        // 模拟 Agent Gateway 日志打印
         async function runGatewayLogs(ticker) {
             const stream = document.getElementById('logStream');
             stream.innerHTML = '';
@@ -209,19 +212,22 @@
         }
 
         function renderDashboard(ticker, data) {
-            // Header & Radar
             document.getElementById('resTicker').innerText = ticker.toUpperCase();
+            document.getElementById('resCompanyName').innerText = data.market_info.name;
             document.getElementById('radarTheme').innerText = `Theme: ${data.radar.theme}`;
             document.getElementById('radarTrend').innerText = `Trend: ${data.radar.sector_trend}`;
             
-            // Market Data
             const changeEl = document.getElementById('resChange');
             const isUp = data.market_info.change >= 0;
             document.getElementById('resPrice').innerText = data.market_info.price;
             changeEl.innerText = `${isUp ? '+' : ''}${data.market_info.change} (${isUp ? '+' : ''}${data.market_info.change_pct}%)`;
             changeEl.className = `text-sm font-bold mt-1 px-2 py-1 rounded inline-block ${isUp ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'}`;
 
-            // Chair Verdict
+            // 绘制真实股价走势图 (新增)
+            if (data.market_info.trend && data.market_info.trend.prices.length > 0) {
+                renderPriceChart(data.market_info.trend.dates, data.market_info.trend.prices, isUp);
+            }
+
             document.getElementById('resScore').innerText = data.chair.score;
             document.getElementById('resBull').innerText = data.chair.bull_case;
             document.getElementById('resBear').innerText = data.chair.bear_case;
@@ -230,7 +236,6 @@
             actionEl.innerText = data.chair.action;
             actionEl.className = `text-2xl font-black mt-2 ${data.chair.action.includes('BUY') ? 'text-success' : (data.chair.action.includes('SELL') ? 'text-danger' : 'text-warning')}`;
 
-            // 5 Agents
             const setAgent = (id, obj, color) => {
                 document.getElementById(`op${id}`).innerText = obj.opinion;
                 document.getElementById(`st${id}`).innerText = obj.stance;
@@ -242,21 +247,52 @@
             setAgent('Sentiment', data.agents.sentiment, 'text-purple-400');
             setAgent('Valuation', data.agents.valuation, 'text-amber-400');
 
-            // Quant Backtest Chart & Metrics
             if (data.backtest && data.backtest.trades > 0) {
                 document.getElementById('btWin').innerText = `${data.backtest.win_rate}%`;
                 document.getElementById('btSharpe').innerText = data.backtest.sharpe;
                 document.getElementById('btDd').innerText = `${data.backtest.max_dd}%`;
-                renderChart(data.backtest.equity_curve);
+                renderBacktestChart(data.backtest.equity_curve);
             } else {
                 document.getElementById('btWin').innerText = 'N/A';
                 document.getElementById('btSharpe').innerText = 'N/A';
                 document.getElementById('btDd').innerText = 'N/A';
-                renderChart([]);
+                renderBacktestChart([]);
             }
         }
 
-        function renderChart(curveData) {
+        // 新增：绘制真实股价走势
+        function renderPriceChart(dates, prices, isUp) {
+            const ctx = document.getElementById('priceTrendChart').getContext('2d');
+            if (priceChart) priceChart.destroy();
+            const color = isUp ? '#3b82f6' : '#ef4444'; // 走势图用主色调或红色
+            priceChart = new Chart(ctx, {
+                type: 'line',
+                data: { 
+                    labels: dates, 
+                    datasets: [{ 
+                        data: prices, 
+                        borderColor: color, 
+                        borderWidth: 2, 
+                        pointRadius: 0, 
+                        tension: 0.1,
+                        fill: true,
+                        backgroundColor: isUp ? 'rgba(59, 130, 246, 0.1)' : 'rgba(239, 68, 68, 0.1)'
+                    }] 
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } }, 
+                    scales: { 
+                        x: { display: false }, 
+                        y: { display: true, position: 'right', grid: { color: '#1e293b' }, ticks: { color: '#64748b', font: { size: 10 } } } 
+                    },
+                    interaction: { mode: 'nearest', axis: 'x', intersect: false }
+                }
+            });
+        }
+
+        function renderBacktestChart(curveData) {
             const ctx = document.getElementById('backtestChart').getContext('2d');
             if (btChart) btChart.destroy();
             const color = curveData.length > 0 && curveData[curveData.length-1] >= curveData[0] ? '#10b981' : '#ef4444';
