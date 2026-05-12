@@ -1,6 +1,7 @@
 import os
 import json
 import urllib.request
+import urllib.parse
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
@@ -17,20 +18,17 @@ async def serve_frontend():
         return FileResponse(file_path)
     return HTMLResponse(content="<h1>前端未找到</h1>", status_code=404)
 
-# --- 新增：智能搜索接口（支持A股拼音与汉字） ---
 @app.get("/api/search")
 async def search_stock(q: str):
+    """腾讯 Smartbox 智能搜索接口"""
     if not q:
         return []
-    # 使用腾讯 Smartbox 接口，完美支持拼音首字母和汉字
     url = f"https://smartbox.gtimg.cn/s3/?q={urllib.parse.quote(q)}&t=all"
     req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-    
     results = []
     try:
         with urllib.request.urlopen(req, timeout=3) as response:
             data_str = response.read().decode('utf-8')
-            # 解析腾讯返回的特有格式: v_hint="sh600000,1,浦发银行,pfyh...^usAAPL,1,苹果..."
             if 'v_hint="' in data_str:
                 raw_hints = data_str.split('v_hint="')[1].split('";')[0]
                 if raw_hints:
@@ -38,10 +36,9 @@ async def search_stock(q: str):
                     for item in items:
                         parts = item.split(',')
                         if len(parts) >= 3:
-                            t_ticker = parts[0] # 如 sh600000, usAAPL
+                            t_ticker = parts[0] 
                             name = parts[2]
                             
-                            # 转换为 Yahoo 标准代码
                             y_ticker = t_ticker
                             if t_ticker.startswith('sh'): y_ticker = t_ticker[2:] + '.SS'
                             elif t_ticker.startswith('sz'): y_ticker = t_ticker[2:] + '.SZ'
@@ -49,12 +46,12 @@ async def search_stock(q: str):
                             elif t_ticker.startswith('us'): y_ticker = t_ticker[2:].upper()
                             
                             results.append({"symbol": y_ticker, "name": name, "raw": t_ticker})
-    except Exception as e:
+    except Exception:
         pass
-    return results[:8] # 最多返回 8 个建议
+    return results[:8] 
 
-# --- 升级：获取更丰富的真实市场数据 ---
 def get_real_market_data(ticker):
+    """获取雅虎真实数据"""
     url = f"https://query2.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1d&range=2d"
     req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
     try:
@@ -83,15 +80,27 @@ def get_real_market_data(ticker):
 
 @app.post("/api/analyze")
 async def analyze_stock(request: AnalysisRequest):
-    ticker = request.ticker.upper().strip()
+    original_input = request.ticker.upper().strip()
+    ticker = original_input
     api_key = os.environ.get("OPENAI_API_KEY", "").strip()
 
     if not api_key:
-        return {"error": True, "message": "未检测到 OPENAI_API_KEY"}
+        return {"error": True, "message": "未检测到 OPENAI_API_KEY，请在 Vercel 配置"}
 
+    # 1. 尝试直接拿数据（适用于用户输入规范的 AAPL, NVDA, 600000.SS 等）
     market_data = get_real_market_data(ticker)
+    
+    # 2. 【核心优化】如果直接拿不到，说明用户可能输入了拼音或汉字，后端智能纠错！
     if not market_data:
-        return {"error": True, "message": f"查无此票或已退市: {ticker}"}
+        suggestions = await search_stock(request.ticker.strip())
+        if suggestions:
+            # 自动提取智能搜索结果的第一个代码去查数据
+            ticker = suggestions[0]["symbol"]
+            market_data = get_real_market_data(ticker)
+
+    # 3. 如果纠错后还是查不到，再抛出错误
+    if not market_data:
+        return {"error": True, "message": f"查无此票或已退市: {original_input}"}
 
     url = "https://api.openai.com/v1/chat/completions"
     headers = {
@@ -99,7 +108,6 @@ async def analyze_stock(request: AnalysisRequest):
         "Authorization": f"Bearer {api_key}"
     }
     
-    # 升级：要求 AI 模拟三个 Agent 的独立思考和博弈
     sys_prompt = """你是一个多智能体量化投资委员会。请根据股票代码和市场数据进行圆桌讨论。
     必须严格输出JSON，包含以下结构：
     {
@@ -113,7 +121,7 @@ async def analyze_stock(request: AnalysisRequest):
         "model": "gpt-4o-mini",
         "messages": [
             {"role": "system", "content": sys_prompt},
-            {"role": "user", "content": f"目标资产: {ticker}\n近期表现: {market_data['text_summary']}"}
+            {"role": "user", "content": f"目标资产代码: {ticker} (请识别该代码对应的真实公司)\n近期表现: {market_data['text_summary']}"}
         ],
         "response_format": {"type": "json_object"},
         "temperature": 0.7
@@ -124,7 +132,9 @@ async def analyze_stock(request: AnalysisRequest):
         with urllib.request.urlopen(req, timeout=7) as response:
             result = json.loads(response.read().decode("utf-8"))
             content = json.loads(result["choices"][0]["message"]["content"])
-            # 将抓取到的真实数据合并返回给前端展示
+            
+            # 将最终解析正确的 ticker 和数据一起返回，前端会自动刷新成正确的代码
+            market_data['resolved_ticker'] = ticker
             content["market_info"] = market_data 
             return content
             
