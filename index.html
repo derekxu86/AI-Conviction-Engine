@@ -11,83 +11,152 @@
             theme: {
                 extend: {
                     colors: {
-                        dark: '#0f172a', card: '#1e293b', primary: '#3b82f6',
-                        success: '#10b981', danger: '#ef4444'
+                        dark: '#0b1120', card: '#1e293b', 
+                        primary: '#3b82f6', success: '#10b981', danger: '#ef4444', warning: '#f59e0b'
                     }
                 }
             }
         }
     </script>
     <style>
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 4px; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        .agent-card { transition: all 0.3s ease; }
+        .agent-card:hover { transform: translateX(5px); }
     </style>
 </head>
-<body class="bg-dark text-gray-200 font-sans min-h-screen p-6">
-    <div class="max-w-6xl mx-auto">
-        <header class="flex items-center justify-between mb-8 border-b border-gray-700 pb-4">
+<body class="bg-dark text-gray-200 font-sans min-h-screen p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto space-y-6">
+        <header class="flex items-center justify-between border-b border-gray-800 pb-4">
             <div>
-                <h1 class="text-3xl font-bold text-white tracking-wider flex items-center">
+                <h1 class="text-2xl md:text-3xl font-bold text-white flex items-center">
                     <span class="text-primary mr-2">⚡</span> AI Conviction Engine
                 </h1>
-                <p class="text-sm text-gray-400 mt-1">Multi-Agent 投资决策与量化验证平台</p>
-            </div>
-            <div class="text-xs bg-card px-3 py-1 rounded-full border border-gray-600">
-                Status: <span class="text-success font-bold">Vercel Cloud Mode</span>
+                <p class="text-xs text-gray-400 mt-1">Multi-Agent 量化研究桌面 (支持A股拼音/全球代码)</p>
             </div>
         </header>
 
-        <section class="bg-card rounded-xl p-6 mb-8 shadow-lg border border-gray-700">
-            <h2 class="text-xl font-semibold text-white mb-4">🎯 机会雷达 (AI Radar)</h2>
-            <div class="flex gap-4">
-                <input type="text" id="tickerInput" placeholder="输入股票代码 (如: NVDA, AAPL)" 
-                       class="flex-1 bg-dark border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition uppercase"
-                       value="NVDA">
-                <button id="analyzeBtn" onclick="startAnalysis()" 
-                        class="bg-primary hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-lg transition shadow-[0_0_15px_rgba(59,130,246,0.4)]">
-                    开始深度分析
+        <section class="relative z-50">
+            <div class="flex gap-3">
+                <div class="relative flex-1">
+                    <input type="text" id="tickerInput" autocomplete="off" oninput="handleSearch(this.value)" 
+                           placeholder="输入代码、拼音首字母或汉字 (如: pfyh, AAPL, 茅台)" 
+                           class="w-full bg-card border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition pl-10">
+                    <svg class="w-5 h-5 absolute left-3 top-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    
+                    <ul id="searchDropdown" class="absolute w-full mt-1 bg-card border border-gray-700 rounded-lg shadow-xl hidden max-h-60 overflow-y-auto">
+                        </ul>
+                </div>
+                <button id="analyzeBtn" onclick="startAnalysis()" class="bg-primary hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg transition shadow-lg shadow-blue-500/20 whitespace-nowrap">
+                    AI 圆桌研判
                 </button>
             </div>
         </section>
 
-        <div id="loadingIndicator" class="hidden flex flex-col items-center justify-center py-12">
-            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
-            <p class="text-gray-400 animate-pulse" id="loadingText">唤醒 Multi-Agent 投资委员会中...</p>
+        <div id="errorAlert" class="hidden bg-red-500/10 border border-red-500/50 text-red-400 p-4 rounded-lg"></div>
+
+        <div id="loadingIndicator" class="hidden py-20 text-center space-y-4">
+            <div class="inline-block relative w-16 h-16">
+                <div class="absolute top-0 left-0 w-full h-full border-4 border-gray-700 rounded-full"></div>
+                <div class="absolute top-0 left-0 w-full h-full border-4 border-primary rounded-full border-t-transparent animate-spin"></div>
+            </div>
+            <p class="text-primary font-medium animate-pulse">正在唤醒投委会 Agents 并抓取实时盘口...</p>
         </div>
 
-        <div id="resultsDashboard" class="hidden space-y-8">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-card p-6 rounded-xl border border-gray-700 border-l-4 border-l-primary flex flex-col justify-center">
-                    <p class="text-sm text-gray-400 mb-1">目标资产</p>
-                    <h3 class="text-4xl font-bold text-white" id="resTicker">NVDA</h3>
+        <div id="resultsDashboard" class="hidden space-y-6">
+            
+            <div class="bg-card rounded-xl p-5 border border-gray-800 flex flex-wrap items-center justify-between gap-4 shadow-lg">
+                <div>
+                    <div class="text-xs text-gray-400 mb-1">Target Asset</div>
+                    <h2 class="text-3xl font-bold text-white tracking-wider" id="resTicker">AAPL</h2>
                 </div>
-                <div class="bg-card p-6 rounded-xl border border-gray-700 border-l-4 border-l-success flex flex-col justify-center">
-                    <p class="text-sm text-gray-400 mb-1">AI Conviction Score</p>
-                    <h3 class="text-4xl font-bold text-success" id="resScore">85 <span class="text-xl text-gray-400">/ 100</span></h3>
-                </div>
-                <div class="bg-card p-6 rounded-xl border border-gray-700 border-l-4 border-l-danger flex flex-col justify-center">
-                    <p class="text-sm text-gray-400 mb-1">操作建议</p>
-                    <h3 class="text-4xl font-bold text-danger" id="resAction">STRONG BUY</h3>
+                <div class="text-right">
+                    <div class="text-xs text-gray-400 mb-1">Last Price (<span id="resCurrency">USD</span>)</div>
+                    <div class="flex items-end gap-2">
+                        <span class="text-3xl font-bold text-white" id="resPrice">0.00</span>
+                        <span id="resChange" class="text-lg font-medium mb-0.5 px-2 py-0.5 rounded bg-gray-800">0.00 (0.00%)</span>
+                    </div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div class="lg:col-span-2 space-y-4">
-                    <h2 class="text-xl font-semibold text-white mb-4 border-b border-gray-700 pb-2">🤖 投资委员会 (Multi-Agent)</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div class="lg:col-span-8 space-y-4">
+                    <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Agent Debate Stream</h3>
                     
-                    <div class="bg-card p-4 rounded-lg border border-yellow-600/50">
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="font-bold text-yellow-500">⚖️ Committee Chair (主席总结)</span>
+                    <div class="agent-card bg-[#1e293b]/50 border border-gray-800 p-4 rounded-xl flex gap-4">
+                        <div class="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 border border-blue-500/30">
+                            🌍
                         </div>
-                        <p class="text-sm text-gray-300" id="resSummary">加载中...</p>
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-bold text-blue-400">Macro Agent</span>
+                                <span id="stanceMacro" class="text-xs px-2 py-1 rounded bg-gray-800 border border-gray-700">-</span>
+                            </div>
+                            <p class="text-sm text-gray-300" id="opMacro">...</p>
+                        </div>
                     </div>
+
+                    <div class="agent-card bg-[#1e293b]/50 border border-gray-800 p-4 rounded-xl flex gap-4">
+                        <div class="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0 border border-emerald-500/30">
+                            📈
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-bold text-emerald-400">Quant Agent</span>
+                                <span id="stanceQuant" class="text-xs px-2 py-1 rounded bg-gray-800 border border-gray-700">-</span>
+                            </div>
+                            <p class="text-sm text-gray-300" id="opQuant">...</p>
+                        </div>
+                    </div>
+
+                    <div class="agent-card bg-[#1e293b]/50 border border-gray-800 p-4 rounded-xl flex gap-4">
+                        <div class="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center shrink-0 border border-rose-500/30">
+                            🛡️
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-bold text-rose-400">Risk Agent</span>
+                                <span id="stanceRisk" class="text-xs px-2 py-1 rounded bg-gray-800 border border-gray-700">-</span>
+                            </div>
+                            <p class="text-sm text-gray-300" id="opRisk">...</p>
+                        </div>
+                    </div>
+
                 </div>
 
-                <div>
-                    <h2 class="text-xl font-semibold text-white mb-4 border-b border-gray-700 pb-2">📈 策略验证</h2>
-                    <div class="bg-card p-5 rounded-xl border border-gray-700">
-                        <div class="relative h-48 w-full"><canvas id="equityChart"></canvas></div>
+                <div class="lg:col-span-4 space-y-6">
+                    <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Final Verdict</h3>
+                    
+                    <div class="bg-gradient-to-br from-card to-gray-900 border border-yellow-600/30 p-5 rounded-xl shadow-[0_0_20px_rgba(202,138,4,0.05)] relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-yellow-500/5 rounded-full blur-2xl -mr-10 -mt-10"></div>
+                        
+                        <div class="flex items-center gap-3 mb-4 border-b border-gray-800 pb-3">
+                            <span class="text-2xl">⚖️</span>
+                            <span class="font-bold text-yellow-500">Committee Chair</span>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4 mb-5">
+                            <div>
+                                <p class="text-xs text-gray-500">Conviction</p>
+                                <p class="text-3xl font-bold text-white" id="resScore">0</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Action</p>
+                                <p class="text-2xl font-bold" id="resAction">-</p>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-black/20 p-3 rounded-lg border border-gray-800/50">
+                            <p class="text-xs text-gray-400 mb-1">Chair Summary:</p>
+                            <p class="text-sm text-gray-200 leading-relaxed" id="resSummary">...</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-card border border-gray-800 p-4 rounded-xl">
+                        <p class="text-xs text-gray-400 mb-2">Price Action (Simulated)</p>
+                        <div class="h-32"><canvas id="equityChart"></canvas></div>
                     </div>
                 </div>
             </div>
@@ -96,59 +165,137 @@
 
     <script>
         let chartInstance = null;
+        let searchTimeout = null;
 
+        // 智能搜索逻辑
+        async function handleSearch(query) {
+            const dropdown = document.getElementById('searchDropdown');
+            if (!query.trim()) { dropdown.classList.add('hidden'); return; }
+            
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+                    const data = await res.json();
+                    
+                    if (data.length === 0) {
+                        dropdown.innerHTML = '<li class="px-4 py-3 text-sm text-gray-500">未找到相关标的</li>';
+                    } else {
+                        dropdown.innerHTML = data.map(item => `
+                            <li onclick="selectTicker('${item.symbol}', '${item.name}')" 
+                                class="px-4 py-3 hover:bg-gray-800 cursor-pointer flex justify-between items-center border-b border-gray-800 last:border-0">
+                                <span class="font-bold text-white">${item.symbol}</span>
+                                <span class="text-sm text-gray-400">${item.name}</span>
+                            </li>
+                        `).join('');
+                    }
+                    dropdown.classList.remove('hidden');
+                } catch (e) { console.error("Search API Error"); }
+            }, 300); // 300ms 防抖
+        }
+
+        function selectTicker(symbol, name) {
+            document.getElementById('tickerInput').value = symbol;
+            document.getElementById('searchDropdown').classList.add('hidden');
+        }
+
+        // 点击外部关闭下拉框
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.relative')) document.getElementById('searchDropdown').classList.add('hidden');
+        });
+
+        // 核心分析逻辑
         async function startAnalysis() {
-            const ticker = document.getElementById('tickerInput').value || 'NVDA';
+            const ticker = document.getElementById('tickerInput').value.trim();
+            if (!ticker) return;
+
             const btn = document.getElementById('analyzeBtn');
             const loading = document.getElementById('loadingIndicator');
-            const loadingText = document.getElementById('loadingText');
             const dashboard = document.getElementById('resultsDashboard');
+            const errorAlert = document.getElementById('errorAlert');
 
             btn.disabled = true; btn.classList.add('opacity-50');
-            dashboard.classList.add('hidden'); loading.classList.remove('hidden');
-            document.getElementById('resTicker').innerText = ticker.toUpperCase();
-            loadingText.innerText = "正在云端呼叫 Python 委员会...";
+            dashboard.classList.add('hidden'); errorAlert.classList.add('hidden');
+            loading.classList.remove('hidden');
+            document.getElementById('searchDropdown').classList.add('hidden');
 
             try {
-                // 注意这里：改为了相对路径 /api/analyze，适配 Vercel 环境
                 const response = await fetch('/api/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ticker: ticker })
                 });
 
-                if (!response.ok) throw new Error("网络错误");
-                const resultData = await response.json();
+                const result = await response.json();
                 
-                // 动态更新页面数据
-                document.getElementById('resScore').innerHTML = `${resultData.score} <span class="text-xl text-gray-400">/ 100</span>`;
-                document.getElementById('resAction').innerText = resultData.action;
-                document.getElementById('resSummary').innerHTML = `
-                    <b>看多逻辑 (Bull Case):</b> ${resultData.bull_case}<br><br>
-                    <b>风险提示 (Bear Case):</b> ${resultData.bear_case}
-                `;
-
-                loading.classList.add('hidden'); dashboard.classList.remove('hidden');
-                btn.disabled = false; btn.classList.remove('opacity-50');
-                renderChart();
-
+                if (result.error) {
+                    errorAlert.innerText = result.message;
+                    errorAlert.classList.remove('hidden');
+                } else {
+                    renderDashboard(ticker, result);
+                    dashboard.classList.remove('hidden');
+                }
             } catch (error) {
-                console.error("请求出错:", error);
-                loadingText.innerText = "连接服务器失败！";
+                errorAlert.innerText = "网络连接异常，请重试。";
+                errorAlert.classList.remove('hidden');
+            } finally {
+                loading.classList.add('hidden');
                 btn.disabled = false; btn.classList.remove('opacity-50');
             }
         }
 
-        function renderChart() {
+        function renderDashboard(ticker, data) {
+            // 渲染资产信息
+            document.getElementById('resTicker').innerText = ticker.toUpperCase();
+            if (data.market_info) {
+                document.getElementById('resPrice').innerText = data.market_info.price;
+                document.getElementById('resCurrency').innerText = data.market_info.currency;
+                
+                const changeEl = document.getElementById('resChange');
+                const isUp = data.market_info.change >= 0;
+                changeEl.innerText = `${isUp ? '+' : ''}${data.market_info.change} (${isUp ? '+' : ''}${data.market_info.change_pct}%)`;
+                changeEl.className = `text-sm font-medium mb-1 px-2 py-0.5 rounded ${isUp ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'}`;
+            }
+
+            // 渲染 Agents 博弈
+            const setAgent = (id, dataObj, colorClass) => {
+                document.getElementById(`op${id}`).innerText = dataObj.opinion;
+                const stanceEl = document.getElementById(`stance${id}`);
+                stanceEl.innerText = dataObj.stance;
+                stanceEl.className = `text-xs px-2 py-1 rounded bg-gray-800 border border-gray-700 ${colorClass}`;
+            };
+            
+            setAgent('Macro', data.macro_agent, 'text-blue-400');
+            setAgent('Quant', data.quant_agent, 'text-emerald-400');
+            setAgent('Risk', data.risk_agent, 'text-rose-400');
+
+            // 渲染主席裁决
+            document.getElementById('resScore').innerText = data.chair.score;
+            const actionEl = document.getElementById('resAction');
+            actionEl.innerText = data.chair.action;
+            actionEl.className = `text-2xl font-bold ${data.chair.action.includes('BUY') ? 'text-success' : (data.chair.action.includes('SELL') ? 'text-danger' : 'text-warning')}`;
+            document.getElementById('resSummary').innerText = data.chair.summary;
+
+            renderChart(data.market_info ? data.market_info.change >= 0 : true);
+        }
+
+        // 绘制趋势图
+        function renderChart(isUp) {
             const ctx = document.getElementById('equityChart').getContext('2d');
             if (chartInstance) chartInstance.destroy();
-            const labels = Array.from({length: 30}, (_, i) => `Day ${i+1}`);
-            let value = 10000; const dataPoints = [value];
-            for(let i = 1; i < 30; i++) { value += (Math.random() - 0.3) * 500; dataPoints.push(value); }
+            
+            const dataPoints = [100];
+            let val = 100;
+            for(let i = 0; i < 20; i++) {
+                val += (Math.random() - (isUp ? 0.3 : 0.7)) * 2;
+                dataPoints.push(val);
+            }
+
+            const color = isUp ? '#10b981' : '#ef4444';
             chartInstance = new Chart(ctx, {
                 type: 'line',
-                data: { labels: labels, datasets: [{ data: dataPoints, borderColor: '#10b981', fill: true, tension: 0.4 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false } } }
+                data: { labels: Array(21).fill(''), datasets: [{ data: dataPoints, borderColor: color, borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
             });
         }
     </script>
