@@ -3,148 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Decision Intelligence Terminal</title>
+    <title>AI Intelligence Terminal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        tailwind.config = {
-            theme: { extend: { colors: { dark: '#0a0e17', card: '#131b2b', bordercol: '#1e293b', primary: '#3b82f6', success: '#10b981', danger: '#ef4444' } } }
-        }
+        tailwind.config = { theme: { extend: { colors: { dark: '#0a0e17', card: '#131b2b', primary: '#3b82f6', success: '#10b981', danger: '#ef4444' } } } }
     </script>
-    <style>
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-        .progress-bar-inner { transition: width 1s ease-in-out; }
-    </style>
 </head>
-<body class="bg-dark text-gray-300 font-sans min-h-screen p-4 md:p-6">
-
+<body class="bg-dark text-gray-200 font-sans min-h-screen p-4 md:p-6">
     <div class="max-w-7xl mx-auto space-y-6">
-        <!-- 搜索与导航 -->
-        <header class="flex flex-col md:flex-row md:items-center justify-between border-b border-bordercol pb-4 gap-4">
+        <header class="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-800 pb-4 gap-4">
             <div>
-                <h1 class="text-2xl font-black text-white flex items-center tracking-tight">
-                    <span class="text-primary mr-2">◈</span> AI Decision Terminal
+                <h1 class="text-2xl font-black text-white tracking-tight flex items-center">
+                    <span class="text-primary mr-2">◈</span> AI Market Intelligence
                 </h1>
             </div>
             <div class="relative w-full md:w-[400px] z-50">
                 <input type="text" id="tickerInput" autocomplete="off" oninput="handleSearch(this.value)" 
-                       placeholder="Ticker / Name (e.g. NVDA, pfyh)..." 
-                       class="w-full bg-[#1e293b] border border-bordercol rounded text-sm text-white focus:outline-none px-4 py-2">
-                <ul id="searchDropdown" class="absolute w-full mt-1 bg-card border border-bordercol rounded shadow-2xl hidden max-h-72 overflow-y-auto z-50"></ul>
+                       placeholder="搜索代码或拼音..." class="w-full bg-[#1e293b] border border-gray-700 rounded px-4 py-2 text-sm text-white focus:outline-none focus:border-primary">
+                <button onclick="startAnalysis()" class="absolute right-1.5 top-1.5 bg-primary text-white text-xs font-bold py-1 px-3 rounded">研判</button>
+                <ul id="searchDropdown" class="absolute w-full mt-1 bg-card border border-gray-700 rounded shadow-2xl hidden max-h-72 overflow-y-auto"></ul>
             </div>
         </header>
 
-        <div id="errorAlert" class="hidden bg-danger/10 border border-danger/50 text-danger p-4 rounded text-sm"></div>
+        <div id="errorAlert" class="hidden bg-red-500/10 border border-red-500/50 text-red-400 p-4 rounded text-sm"></div>
 
-        <!-- 加载动画 -->
-        <div id="loadingIndicator" class="hidden text-center py-20 text-gray-500 font-mono text-sm animate-pulse">
-            > Initializing Market Regime Engine...<br>
-            > Calculating Conviction Factors...<br>
-            > Polling Investment Committee...
-        </div>
-
-        <!-- 核心终端区域 -->
-        <div id="resultsDashboard" class="hidden space-y-6 pt-2">
-            
-            <!-- 模块 1: Market Regime Engine -->
-            <div class="bg-card border border-bordercol p-5 rounded-lg shadow-md border-l-4 border-l-primary">
-                <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Market Regime Engine</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                        <p class="text-[10px] text-gray-500 uppercase mb-1">Current Regime</p>
-                        <p class="text-sm font-bold text-white" id="regimeCurrent">-</p>
-                    </div>
-                    <div>
-                        <p class="text-[10px] text-gray-500 uppercase mb-1">Capital Flow Rotation</p>
-                        <p class="text-sm text-primary" id="regimeFlow">-</p>
-                    </div>
-                    <div>
-                        <p class="text-[10px] text-gray-500 uppercase mb-1">Asset Fit</p>
-                        <p class="text-sm text-gray-400" id="regimeFit">-</p>
-                    </div>
+        <div id="resultsDashboard" class="hidden space-y-6">
+            <!-- Market Regime Engine -->
+            <div class="bg-card border border-gray-800 rounded p-4 flex flex-col md:flex-row justify-between items-center gap-4 border-l-4 border-l-primary">
+                <div>
+                    <span class="text-xs text-gray-500 uppercase font-bold">Market Regime Engine</span>
+                    <h2 class="text-lg font-bold text-white mt-1" id="resRegime">-</h2>
+                </div>
+                <div class="text-right">
+                    <span class="text-xs text-gray-500 uppercase font-bold">Theme Rotation Map</span>
+                    <h2 class="text-sm text-emerald-400 mt-1 font-mono" id="resRotation">-</h2>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- 行情与图表 -->
-                <div class="lg:col-span-2 bg-card border border-bordercol p-5 rounded-lg flex flex-col">
-                    <div class="flex justify-between items-start mb-4">
-                        <div>
-                            <p class="text-xs text-gray-500 font-bold uppercase" id="resCompanyName">Target Asset</p>
-                            <h2 class="text-3xl font-black text-white" id="resTicker">-</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- 左侧栏：数据验证与因子模型 -->
+                <div class="lg:col-span-4 space-y-6">
+                    <div class="bg-gradient-to-br from-[#1e293b] to-card border border-gray-800 p-5 rounded relative">
+                        <div class="text-xs text-gray-400 uppercase tracking-widest mb-1" id="resCompanyName">Target Asset</div>
+                        <h2 class="text-3xl font-black text-white" id="resTicker">-</h2>
+                        <div class="flex items-end gap-2 mt-2">
+                            <span class="text-2xl font-bold text-white" id="resPrice">-</span>
+                            <span id="resChange" class="text-sm font-bold bg-gray-800 px-2 py-0.5 rounded">-</span>
                         </div>
-                        <div class="text-right">
-                            <div class="text-2xl font-bold text-white" id="resPrice">-</div>
-                            <div id="resChange" class="text-xs font-bold mt-1 px-2 py-1 rounded inline-block bg-gray-800 text-gray-400">-</div>
-                        </div>
+                        <div class="h-24 mt-4"><canvas id="priceTrendChart"></canvas></div>
                     </div>
-                    <div class="flex-1 w-full relative min-h-[150px]"><canvas id="priceTrendChart"></canvas></div>
-                </div>
 
-                <!-- 模块 2: Explainable Conviction Score -->
-                <div class="bg-card border border-bordercol p-5 rounded-lg">
-                    <div class="flex justify-between items-center mb-4 border-b border-bordercol pb-2">
-                        <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest">Conviction Engine</h3>
-                        <div class="text-right">
-                            <span class="text-3xl font-black text-white" id="totalScore">-</span>
-                            <span class="text-xs block" id="totalAction">-</span>
+                    <!-- Explainable Conviction Score -->
+                    <div class="bg-card border border-gray-800 p-5 rounded">
+                        <div class="flex justify-between items-end mb-4 border-b border-gray-800 pb-2">
+                            <span class="text-xs text-gray-400 uppercase font-bold">Conviction Score</span>
+                            <span class="text-3xl font-black text-white" id="resScore">-</span>
+                        </div>
+                        <div class="space-y-3 text-xs font-mono" id="factorBars">
+                            <!-- JS动态填充因子条 -->
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-gray-800">
+                            <span class="text-[10px] text-gray-500 uppercase">Conviction Timeline</span>
+                            <div class="flex justify-between mt-2 text-xs text-gray-400">
+                                <span>3W: <b class="text-white" id="time3w">-</b></span>
+                                <span>2W: <b class="text-white" id="time2w">-</b></span>
+                                <span>Now: <b class="text-white" id="timeNow">-</b></span>
+                            </div>
+                            <p class="text-[10px] text-gray-500 mt-2" id="timeReason">-</p>
                         </div>
                     </div>
-                    
-                    <div class="space-y-3" id="factorBars">
-                        <!-- 动态生成的进度条 -->
-                    </div>
-                </div>
-            </div>
 
-            <!-- 模块 3: Investment Committee & Anti-thesis -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
-                <!-- Chair Verdict (带反向逻辑) -->
-                <div class="bg-[#1e293b]/30 border border-bordercol p-5 rounded-lg flex flex-col gap-4">
-                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest border-b border-bordercol pb-2">Final Verdict</h3>
-                    <div class="bg-success/5 border border-success/20 p-3 rounded text-sm">
-                        <span class="text-success font-bold text-xs uppercase block mb-1">Bull Case</span>
-                        <span id="bullCase" class="text-gray-300">-</span>
-                    </div>
-                    <div class="bg-danger/5 border border-danger/20 p-3 rounded text-sm">
-                        <span class="text-danger font-bold text-xs uppercase block mb-1">Bear Case</span>
-                        <span id="bearCase" class="text-gray-300">-</span>
-                    </div>
-                    <div class="mt-auto bg-black/40 p-3 rounded text-sm text-gray-400">
-                        <span class="font-bold text-white text-xs block mb-1">Chair Summary</span>
-                        <span id="chairVerdict">-</span>
+                    <!-- Quant Validation Layer -->
+                    <div class="bg-card border border-gray-800 p-5 rounded">
+                        <span class="text-xs text-gray-400 uppercase font-bold mb-3 block">Quant Validation</span>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="bg-dark p-2 rounded text-center"><p class="text-[10px] text-gray-500">Win Rate</p><p class="font-bold text-emerald-400" id="btWin">-</p></div>
+                            <div class="bg-dark p-2 rounded text-center"><p class="text-[10px] text-gray-500">Sharpe</p><p class="font-bold text-white" id="btSharpe">-</p></div>
+                            <div class="bg-dark p-2 rounded text-center"><p class="text-[10px] text-gray-500">Max DD</p><p class="font-bold text-danger" id="btDd">-</p></div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- AI Thesis Feed -->
-                <div class="lg:col-span-2 space-y-3">
-                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 border-b border-bordercol pb-2">AI Thesis Feed</h3>
-                    
-                    <div class="bg-card border border-bordercol p-4 rounded flex gap-4">
-                        <div class="text-xl">🦅</div>
-                        <div>
-                            <span class="text-xs font-bold text-blue-400 uppercase">Macro Hawk</span>
-                            <p class="text-sm text-gray-400 mt-1" id="agentMacro">-</p>
+                <!-- 右侧栏：AI Thesis Feed -->
+                <div class="lg:col-span-8 space-y-4">
+                    <div class="bg-card border border-gray-800 p-5 rounded shadow">
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="text-sm font-bold uppercase text-yellow-500">AI Final Committee View</span>
+                            <span class="text-xl font-black" id="resAction">-</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div class="bg-success/10 border border-success/20 p-3 rounded">
+                                <span class="text-success font-bold text-xs block mb-1">BULL CASE</span><span id="resBull" class="text-gray-300">-</span>
+                            </div>
+                            <div class="bg-danger/10 border border-danger/20 p-3 rounded">
+                                <span class="text-danger font-bold text-xs block mb-1">BEAR CASE</span><span id="resBear" class="text-gray-300">-</span>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="bg-card border border-bordercol p-4 rounded flex gap-4">
-                        <div class="text-xl">🤖</div>
-                        <div>
-                            <span class="text-xs font-bold text-emerald-400 uppercase">Quant Trader</span>
-                            <p class="text-sm text-gray-400 mt-1" id="agentQuant">-</p>
-                        </div>
-                    </div>
-
-                    <div class="bg-card border border-bordercol p-4 rounded flex gap-4 border-l-2 border-l-danger">
-                        <div class="text-xl">🐻</div>
-                        <div>
-                            <span class="text-xs font-bold text-danger uppercase">Deep Value Analyst (Contrarian)</span>
-                            <p class="text-sm text-gray-400 mt-1" id="agentValue">-</p>
-                        </div>
+                    <h3 class="text-xs text-gray-500 uppercase font-bold tracking-widest pt-2">AI Thesis Feed</h3>
+                    <div class="space-y-3">
+                        <div class="bg-card border border-gray-800 p-4 rounded border-l-2 border-l-blue-500"><div class="text-xs font-bold text-blue-500 mb-1">[Macro Hawk]</div><p class="text-sm text-gray-300" id="opMacro">-</p></div>
+                        <div class="bg-card border border-gray-800 p-4 rounded border-l-2 border-l-emerald-500"><div class="text-xs font-bold text-emerald-500 mb-1">[Quant Trader]</div><p class="text-sm text-gray-300" id="opQuant">-</p></div>
+                        <div class="bg-card border border-gray-800 p-4 rounded border-l-2 border-l-rose-500"><div class="text-xs font-bold text-rose-500 mb-1">[Risk Officer]</div><p class="text-sm text-gray-300" id="opRisk">-</p></div>
+                        <div class="bg-card border border-gray-800 p-4 rounded border-l-2 border-l-purple-500"><div class="text-xs font-bold text-purple-500 mb-1">[Narrative Analyst]</div><p class="text-sm text-gray-300" id="opSentiment">-</p></div>
+                        <div class="bg-card border border-gray-800 p-4 rounded border-l-2 border-l-amber-500"><div class="text-xs font-bold text-amber-500 mb-1">[Deep Value Analyst]</div><p class="text-sm text-gray-300" id="opValuation">-</p></div>
                     </div>
                 </div>
             </div>
@@ -165,11 +129,12 @@
                 try {
                     const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
                     const data = await res.json();
-                    if (data.length === 0) dp.innerHTML = '<li class="px-4 py-3 text-xs text-gray-500">No matches</li>';
-                    else dp.innerHTML = data.map(i => `<li onclick="selectAndAnalyze('${i.symbol}', '${i.name}')" class="px-4 py-2 hover:bg-[#1e293b] cursor-pointer flex justify-between items-center"><span class="font-bold text-sm">${i.raw.toUpperCase()} <span class="text-xs text-gray-500 ml-2">${i.name}</span></span></li>`).join('');
-                    dp.classList.remove('hidden');
+                    if (data.length > 0) {
+                        dp.innerHTML = data.map(i => `<li onclick="selectAndAnalyze('${i.symbol}', '${i.name}')" class="px-4 py-3 hover:bg-gray-800 cursor-pointer flex justify-between items-center"><span class="font-bold text-white text-sm">${i.raw.toUpperCase()} <span class="text-xs font-normal text-gray-400 ml-2">${i.name}</span></span><span class="text-[10px] bg-gray-900 text-gray-500 px-2 py-1 rounded">${i.symbol}</span></li>`).join('');
+                        dp.classList.remove('hidden');
+                    }
                 } catch (e) {}
-            }, 300); 
+            }, 200); 
         }
 
         function selectAndAnalyze(symbol, name) {
@@ -182,99 +147,76 @@
         async function startAnalysis() {
             const ticker = document.getElementById('tickerInput').value.trim();
             if (!ticker) return;
-
             document.getElementById('resultsDashboard').classList.add('hidden'); 
-            document.getElementById('errorAlert').classList.add('hidden');
-            document.getElementById('searchDropdown').classList.add('hidden');
-            document.getElementById('loadingIndicator').classList.remove('hidden');
-
+            
             try {
                 const response = await fetch('/api/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ticker: ticker, name: activeSelectedName })
                 });
-
                 const result = await response.json();
-                document.getElementById('loadingIndicator').classList.add('hidden');
-                
-                if (result.error) {
-                    document.getElementById('errorAlert').innerText = result.message;
-                    document.getElementById('errorAlert').classList.remove('hidden');
-                } else {
-                    renderTerminal(result.market_info.resolved_ticker || ticker, result);
+                if (!result.error) {
+                    renderDashboard(ticker, result);
                     document.getElementById('resultsDashboard').classList.remove('hidden');
                 }
-            } catch (error) {
-                document.getElementById('loadingIndicator').classList.add('hidden');
-                document.getElementById('errorAlert').innerText = "Request failed.";
-                document.getElementById('errorAlert').classList.remove('hidden');
-            }
+            } catch (error) { console.error(error); }
         }
 
-        function renderFactorBar(label, score) {
-            let color = score > 70 ? 'bg-success' : (score < 40 ? 'bg-danger' : 'bg-primary');
-            return `
-                <div>
-                    <div class="flex justify-between text-[10px] uppercase text-gray-400 mb-1">
-                        <span>${label.replace('_', ' ')}</span><span>${score}</span>
-                    </div>
-                    <div class="w-full bg-gray-800 rounded-full h-1.5">
-                        <div class="${color} h-1.5 rounded-full progress-bar-inner" style="width: ${score}%"></div>
-                    </div>
-                </div>`;
-        }
-
-        function renderTerminal(ticker, data) {
-            // Market Data
+        function renderDashboard(ticker, data) {
+            document.getElementById('resRegime').innerText = data.regime.current;
+            document.getElementById('resRotation').innerText = data.regime.rotation_map;
+            
             document.getElementById('resTicker').innerText = ticker.toUpperCase();
             document.getElementById('resCompanyName').innerText = data.market_info.name; 
-            
             const isUp = data.market_info.change >= 0;
             document.getElementById('resPrice').innerText = data.market_info.price;
-            document.getElementById('resChange').innerText = `${isUp ? '+' : ''}${data.market_info.change} (${isUp ? '+' : ''}${data.market_info.change_pct}%)`;
-            document.getElementById('resChange').className = `text-xs font-bold mt-1 px-2 py-1 rounded inline-block ${isUp ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'}`;
+            document.getElementById('resChange').innerText = `${isUp ? '+' : ''}${data.market_info.change_pct}%`;
+            document.getElementById('resChange').className = `text-sm font-bold px-2 py-0.5 rounded ${isUp ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'}`;
 
             if (data.market_info.trend && data.market_info.trend.prices.length > 0) {
                 renderPriceChart(data.market_info.trend.dates, data.market_info.trend.prices, isUp);
             }
 
-            // Regime Engine
-            document.getElementById('regimeCurrent').innerText = data.market_regime.current_regime;
-            document.getElementById('regimeFlow').innerText = data.market_regime.capital_flow;
-            document.getElementById('regimeFit').innerText = data.market_regime.asset_fit;
+            document.getElementById('resScore').innerText = data.conviction.total;
+            document.getElementById('time3w').innerText = data.conviction.timeline.three_weeks_ago;
+            document.getElementById('time2w').innerText = data.conviction.timeline.two_weeks_ago;
+            document.getElementById('timeNow').innerText = data.conviction.timeline.current;
+            document.getElementById('timeReason').innerText = data.conviction.timeline.reason;
 
-            // Conviction Factors
-            document.getElementById('totalScore').innerText = data.conviction.total_score;
-            document.getElementById('totalAction').innerText = data.conviction.action;
-            let actionColor = data.conviction.action.includes('BUY') ? 'text-success' : (data.conviction.action.includes('SELL') ? 'text-danger' : 'text-gray-400');
-            document.getElementById('totalAction').className = `text-sm font-bold uppercase ${actionColor}`;
-            
-            let barsHtml = "";
-            for (const [key, value] of Object.entries(data.conviction.factors)) {
-                barsHtml += renderFactorBar(key, value);
+            // 渲染动态因子条
+            const f = data.conviction.factors;
+            let barHtml = '';
+            for (const [key, val] of Object.entries(f)) {
+                barHtml += `<div class="flex items-center justify-between"><span class="w-20 capitalize text-gray-400">${key}</span><div class="flex-1 bg-dark h-2 rounded mx-3"><div class="bg-primary h-2 rounded" style="width: ${val}%"></div></div><span class="w-6 text-right">${val}</span></div>`;
             }
-            document.getElementById('factorBars').innerHTML = barsHtml;
+            document.getElementById('factorBars').innerHTML = barHtml;
 
-            // Committee Verdict
-            document.getElementById('bullCase').innerText = data.committee_chair.bull_case;
-            document.getElementById('bearCase').innerText = data.committee_chair.bear_case;
-            document.getElementById('chairVerdict').innerText = data.committee_chair.final_verdict;
+            document.getElementById('resBull').innerText = data.committee.bull_case;
+            document.getElementById('resBear').innerText = data.committee.bear_case;
+            document.getElementById('resAction').innerText = data.committee.action;
+            document.getElementById('resAction').className = `text-xl font-black ${data.committee.action.includes('BUY') ? 'text-success' : (data.committee.action.includes('SELL') ? 'text-danger' : 'text-warning')}`;
 
-            // Agent Feed
-            document.getElementById('agentMacro').innerText = data.agents.macro_hawk.opinion;
-            document.getElementById('agentQuant').innerText = data.agents.quant_trader.opinion;
-            document.getElementById('agentValue').innerText = data.agents.deep_value.opinion;
+            document.getElementById('opMacro').innerText = data.agents.macro_hawk;
+            document.getElementById('opQuant').innerText = data.agents.quant_trader;
+            document.getElementById('opRisk').innerText = data.agents.risk_officer;
+            document.getElementById('opSentiment').innerText = data.agents.narrative_analyst;
+            document.getElementById('opValuation').innerText = data.agents.deep_value;
+
+            if (data.backtest && data.backtest.trades > 0) {
+                document.getElementById('btWin').innerText = `${data.backtest.win_rate}%`;
+                document.getElementById('btSharpe').innerText = data.backtest.sharpe;
+                document.getElementById('btDd').innerText = `${data.backtest.max_dd}%`;
+            }
         }
 
         function renderPriceChart(dates, prices, isUp) {
             const ctx = document.getElementById('priceTrendChart').getContext('2d');
             if (priceChart) priceChart.destroy();
-            const color = isUp ? '#3b82f6' : '#ef4444'; 
             priceChart = new Chart(ctx, {
                 type: 'line',
-                data: { labels: dates, datasets: [{ data: prices, borderColor: color, borderWidth: 2, pointRadius: 0, tension: 0.1, fill: true, backgroundColor: isUp ? 'rgba(59, 130, 246, 0.1)' : 'rgba(239, 68, 68, 0.1)' }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: true, position: 'right', grid: { color: '#1e293b' }, ticks: { color: '#64748b', font: { size: 10 } } } }, interaction: { mode: 'nearest', axis: 'x', intersect: false } }
+                data: { labels: dates, datasets: [{ data: prices, borderColor: isUp ? '#3b82f6' : '#ef4444', borderWidth: 2, pointRadius: 0, tension: 0.1 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
             });
         }
     </script>
