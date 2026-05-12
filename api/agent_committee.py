@@ -5,74 +5,50 @@ from openai import OpenAI
 
 class InvestmentCommittee:
     def __init__(self, ticker):
-        self.ticker = ticker
-        
-        # 获取 Vercel 环境变量中的 API Key
-        api_key = os.environ.get("OPENAI_API_KEY")
-        self.client = OpenAI(api_key=api_key) if api_key else None
+        self.ticker = ticker.upper()
+        self.api_key = os.environ.get("OPENAI_API_KEY")
 
-    def fetch_real_data(self):
-        """轻量级获取真实数据，绕过 yfinance 的体积限制"""
+    def get_market_data(self):
+        """2秒极限抓取，抓不到就立刻放弃，绝不拖死系统"""
         try:
-            # 直接调用雅虎金融的底层接口，极其快速
-            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{self.ticker}?interval=1d&range=1mo"
-            headers = {'User-Agent': 'Mozilla/5.0'}
-            resp = requests.get(url, headers=headers, timeout=5)
-            data = resp.json()
-            
-            # 解析价格
-            close_prices = data['chart']['result'][0]['indicators']['quote'][0]['close']
-            valid_prices = [p for p in close_prices if p is not None]
-            
-            if not valid_prices:
-                return "暂无行情数据"
-                
-            current_price = valid_prices[-1]
-            past_price = valid_prices[0]
-            pct_change = ((current_price - past_price) / past_price) * 100
-            
-            return f"当前价格: ${current_price:.2f}, 近一个月涨跌幅: {pct_change:.2f}%"
-            
-        except Exception as e:
-            return "获取实时数据超时，请AI基于已有知识库进行分析。"
+            url = f"https://query2.finance.yahoo.com/v8/finance/chart/{self.ticker}?interval=1d&range=5d"
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+            # 极限熔断：只等2秒
+            res = requests.get(url, headers=headers, timeout=2)
+            data = res.json()
+            price = data['chart']['result'][0]['meta']['regularMarketPrice']
+            return f"最新真实价格: ${price}"
+        except Exception:
+            return "实时数据被拦截或超时，请基于已有知识库和近期宏观趋势进行分析。"
 
     def start_meeting(self):
-        """一键启动：防超时优化版"""
-        if not self.client:
-            return {"score": 0, "action": "ERROR", "bull_case": "未检测到 OPENAI_API_KEY", "bear_case": "请在 Vercel 环境变量中配置"}
-
-        # 1. 瞬间获取市场数据
-        context = self.fetch_real_data()
-
-        # 2. 十秒防超时优化：将 4 个 Agent 的任务合并到 1 个超级 Prompt 中
-        sys_prompt = """你是一个顶级的量化投资委员会，内部包含Macro、Quant和Risk三个视角的Agent。
-        请基于用户提供的股票代码和近期价格表现，直接进行综合研判。
-        必须严格输出 JSON 格式，不要有任何其他废话。包含以下 4 个字段：
-        "score": 0到100的整数 (信念评分),
-        "action": 只能是 "STRONG BUY", "BUY", "HOLD", "SELL", 或 "STRONG SELL",
-        "bull_case": 简短的看多理由和催化剂 (50字以内),
-        "bear_case": 简短的最大下行风险提示 (50字以内)
-        """
+        if not self.api_key:
+            return {"score": 0, "action": "KEY MISSING", "bull_case": "请检查 Vercel 环境变量", "bear_case": "未检测到 OPENAI_API_KEY"}
+        
+        client = OpenAI(api_key=self.api_key)
+        context = self.get_market_data()
+        
+        sys_prompt = """你是一个量化投资委员会。请根据股票代码和提供的数据直接综合研判。
+        严格输出JSON，不要有任何 Markdown 标记，包含4个字段：
+        {"score": 0-100整数, "action": "BUY/SELL/HOLD", "bull_case": "看多理由", "bear_case": "看空理由"}"""
         
         try:
-            # 设置请求超时时间为 8 秒，绝对不超过 Vercel 的 10 秒死线
-            response = self.client.chat.completions.create(
+            # 6秒极限思考：防止被 Vercel 10秒规则击杀
+            res = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": sys_prompt},
-                    {"role": "user", "content": f"目标资产: {self.ticker}\n近期数据: {context}"}
+                    {"role": "user", "content": f"目标股票: {self.ticker}\n市场状态: {context}"}
                 ],
                 response_format={"type": "json_object"},
                 temperature=0.7,
-                timeout=8 
+                timeout=6 
             )
-            return json.loads(response.choices[0].message.content)
+            return json.loads(res.choices[0].message.content)
             
         except Exception as e:
-            # 如果真的遇到网络波动，返回友好的中文错误而不是让前端转圈圈崩溃
-            return {
-                "score": 0, 
-                "action": "TIMEOUT", 
-                "bull_case": f"运行出错: {str(e)}", 
-                "bear_case": "可能是 OpenAI 接口响应过慢触发了 Vercel 超时限制。"
-            }
+            # 即使 AI 挂了，也要优雅地把错误传给前端面板
+            error_str = str(e)
+            if "insufficient_quota" in error_str:
+                error_str = "OpenAI 账号余额不足或未绑定信用卡！"
+            return {"score": 0, "action": "AI ERROR", "bull_case": "OpenAI 调用失败", "bear_case": error_str}
