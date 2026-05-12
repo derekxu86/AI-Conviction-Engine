@@ -45,9 +45,7 @@
                            placeholder="输入代码、拼音首字母或汉字 (如: pfyh, AAPL, 茅台)" 
                            class="w-full bg-card border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition pl-10">
                     <svg class="w-5 h-5 absolute left-3 top-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                    
-                    <ul id="searchDropdown" class="absolute w-full mt-1 bg-card border border-gray-700 rounded-lg shadow-xl hidden max-h-60 overflow-y-auto">
-                        </ul>
+                    <ul id="searchDropdown" class="absolute w-full mt-1 bg-card border border-gray-700 rounded-lg shadow-xl hidden max-h-60 overflow-y-auto"></ul>
                 </div>
                 <button id="analyzeBtn" onclick="startAnalysis()" class="bg-primary hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg transition shadow-lg shadow-blue-500/20 whitespace-nowrap">
                     AI 圆桌研判
@@ -66,7 +64,6 @@
         </div>
 
         <div id="resultsDashboard" class="hidden space-y-6">
-            
             <div class="bg-card rounded-xl p-5 border border-gray-800 flex flex-wrap items-center justify-between gap-4 shadow-lg">
                 <div>
                     <div class="text-xs text-gray-400 mb-1">Target Asset</div>
@@ -86,9 +83,7 @@
                     <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Agent Debate Stream</h3>
                     
                     <div class="agent-card bg-[#1e293b]/50 border border-gray-800 p-4 rounded-xl flex gap-4">
-                        <div class="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 border border-blue-500/30">
-                            🌍
-                        </div>
+                        <div class="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 border border-blue-500/30">🌍</div>
                         <div class="flex-1">
                             <div class="flex items-center justify-between mb-1">
                                 <span class="font-bold text-blue-400">Macro Agent</span>
@@ -99,9 +94,7 @@
                     </div>
 
                     <div class="agent-card bg-[#1e293b]/50 border border-gray-800 p-4 rounded-xl flex gap-4">
-                        <div class="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0 border border-emerald-500/30">
-                            📈
-                        </div>
+                        <div class="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0 border border-emerald-500/30">📈</div>
                         <div class="flex-1">
                             <div class="flex items-center justify-between mb-1">
                                 <span class="font-bold text-emerald-400">Quant Agent</span>
@@ -112,9 +105,7 @@
                     </div>
 
                     <div class="agent-card bg-[#1e293b]/50 border border-gray-800 p-4 rounded-xl flex gap-4">
-                        <div class="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center shrink-0 border border-rose-500/30">
-                            🛡️
-                        </div>
+                        <div class="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center shrink-0 border border-rose-500/30">🛡️</div>
                         <div class="flex-1">
                             <div class="flex items-center justify-between mb-1">
                                 <span class="font-bold text-rose-400">Risk Agent</span>
@@ -123,20 +114,16 @@
                             <p class="text-sm text-gray-300" id="opRisk">...</p>
                         </div>
                     </div>
-
                 </div>
 
                 <div class="lg:col-span-4 space-y-6">
                     <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Final Verdict</h3>
-                    
                     <div class="bg-gradient-to-br from-card to-gray-900 border border-yellow-600/30 p-5 rounded-xl shadow-[0_0_20px_rgba(202,138,4,0.05)] relative overflow-hidden">
                         <div class="absolute top-0 right-0 w-32 h-32 bg-yellow-500/5 rounded-full blur-2xl -mr-10 -mt-10"></div>
-                        
                         <div class="flex items-center gap-3 mb-4 border-b border-gray-800 pb-3">
                             <span class="text-2xl">⚖️</span>
                             <span class="font-bold text-yellow-500">Committee Chair</span>
                         </div>
-                        
                         <div class="grid grid-cols-2 gap-4 mb-5">
                             <div>
                                 <p class="text-xs text-gray-500">Conviction</p>
@@ -147,13 +134,11 @@
                                 <p class="text-2xl font-bold" id="resAction">-</p>
                             </div>
                         </div>
-                        
                         <div class="bg-black/20 p-3 rounded-lg border border-gray-800/50">
                             <p class="text-xs text-gray-400 mb-1">Chair Summary:</p>
                             <p class="text-sm text-gray-200 leading-relaxed" id="resSummary">...</p>
                         </div>
                     </div>
-
                     <div class="bg-card border border-gray-800 p-4 rounded-xl">
                         <p class="text-xs text-gray-400 mb-2">Price Action (Simulated)</p>
                         <div class="h-32"><canvas id="equityChart"></canvas></div>
@@ -167,17 +152,14 @@
         let chartInstance = null;
         let searchTimeout = null;
 
-        // 智能搜索逻辑
         async function handleSearch(query) {
             const dropdown = document.getElementById('searchDropdown');
             if (!query.trim()) { dropdown.classList.add('hidden'); return; }
-            
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(async () => {
                 try {
                     const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
                     const data = await res.json();
-                    
                     if (data.length === 0) {
                         dropdown.innerHTML = '<li class="px-4 py-3 text-sm text-gray-500">未找到相关标的</li>';
                     } else {
@@ -191,7 +173,7 @@
                     }
                     dropdown.classList.remove('hidden');
                 } catch (e) { console.error("Search API Error"); }
-            }, 300); // 300ms 防抖
+            }, 300);
         }
 
         function selectTicker(symbol, name) {
@@ -199,12 +181,10 @@
             document.getElementById('searchDropdown').classList.add('hidden');
         }
 
-        // 点击外部关闭下拉框
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.relative')) document.getElementById('searchDropdown').classList.add('hidden');
         });
 
-        // 核心分析逻辑
         async function startAnalysis() {
             const ticker = document.getElementById('tickerInput').value.trim();
             if (!ticker) return;
@@ -245,19 +225,16 @@
         }
 
         function renderDashboard(ticker, data) {
-            // 渲染资产信息
             document.getElementById('resTicker').innerText = ticker.toUpperCase();
             if (data.market_info) {
                 document.getElementById('resPrice').innerText = data.market_info.price;
                 document.getElementById('resCurrency').innerText = data.market_info.currency;
-                
                 const changeEl = document.getElementById('resChange');
                 const isUp = data.market_info.change >= 0;
                 changeEl.innerText = `${isUp ? '+' : ''}${data.market_info.change} (${isUp ? '+' : ''}${data.market_info.change_pct}%)`;
                 changeEl.className = `text-sm font-medium mb-1 px-2 py-0.5 rounded ${isUp ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'}`;
             }
 
-            // 渲染 Agents 博弈
             const setAgent = (id, dataObj, colorClass) => {
                 document.getElementById(`op${id}`).innerText = dataObj.opinion;
                 const stanceEl = document.getElementById(`stance${id}`);
@@ -269,7 +246,6 @@
             setAgent('Quant', data.quant_agent, 'text-emerald-400');
             setAgent('Risk', data.risk_agent, 'text-rose-400');
 
-            // 渲染主席裁决
             document.getElementById('resScore').innerText = data.chair.score;
             const actionEl = document.getElementById('resAction');
             actionEl.innerText = data.chair.action;
@@ -279,18 +255,11 @@
             renderChart(data.market_info ? data.market_info.change >= 0 : true);
         }
 
-        // 绘制趋势图
         function renderChart(isUp) {
             const ctx = document.getElementById('equityChart').getContext('2d');
             if (chartInstance) chartInstance.destroy();
-            
-            const dataPoints = [100];
-            let val = 100;
-            for(let i = 0; i < 20; i++) {
-                val += (Math.random() - (isUp ? 0.3 : 0.7)) * 2;
-                dataPoints.push(val);
-            }
-
+            const dataPoints = [100]; let val = 100;
+            for(let i = 0; i < 20; i++) { val += (Math.random() - (isUp ? 0.3 : 0.7)) * 2; dataPoints.push(val); }
             const color = isUp ? '#10b981' : '#ef4444';
             chartInstance = new Chart(ctx, {
                 type: 'line',
