@@ -4,6 +4,7 @@ import math
 import urllib.request
 import urllib.parse
 from datetime import datetime
+from urllib.error import HTTPError
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
@@ -25,6 +26,7 @@ async def search_stock(q: str):
     if not q: return []
     results = []
     
+    # 引擎 1：Yahoo Finance (支持美股、澳洲股等全球资产)
     try:
         y_url = f"https://query2.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(q)}"
         y_req = urllib.request.Request(y_url, headers={'User-Agent': 'Mozilla/5.0'})
@@ -38,10 +40,15 @@ async def search_stock(q: str):
                         results.append({"symbol": symbol, "name": name, "raw": symbol})
     except Exception: pass
 
+    # 引擎 2：新浪财经 (支持A股汉字/拼音)
     try:
         encoded_q = urllib.parse.quote(q.encode('gbk'))
         s_url = f"https://suggest3.sinajs.cn/suggest/type=&key={encoded_q}"
-        s_req = urllib.request.Request(s_url, headers={'User-Agent': 'Mozilla/5.0'})
+        # 【致命修复】：必须带上 Referer，否则新浪会直接拦截请求！
+        s_req = urllib.request.Request(s_url, headers={
+            'User-Agent': 'Mozilla/5.0',
+            'Referer': 'https://finance.sina.com.cn/'
+        })
         with urllib.request.urlopen(s_req, timeout=3) as res:
             data_str = res.read().decode('gbk')
             if '="' in data_str:
@@ -91,7 +98,6 @@ def get_market_and_backtest_data(ticker):
             change = price - prev_close
             change_pct = (change / prev_close * 100) if prev_close else 0
             
-            # 【新增】：提取时间轴和价格走势图数据
             timestamps = result.get('timestamp', [])
             raw_prices = result['indicators']['quote'][0]['close']
             
@@ -148,7 +154,7 @@ def get_market_and_backtest_data(ticker):
                     "price": round(price, 2), "change": round(change, 2),
                     "change_pct": round(change_pct, 2), "currency": meta.get('currency', 'USD'),
                     "text_summary": f"最新价格: {price} {meta.get('currency', 'USD')}。",
-                    "trend": {"dates": dates_list, "prices": prices_list} # 发送走势图数据
+                    "trend": {"dates": dates_list, "prices": prices_list}
                 },
                 "backtest": backtest_res
             }
@@ -164,6 +170,7 @@ async def analyze_stock(request: AnalysisRequest):
 
     data_pack = get_market_and_backtest_data(ticker)
     
+    # 纠错网关
     if not data_pack:
         suggestions = await search_stock(original_input)
         if suggestions:
@@ -179,34 +186,29 @@ async def analyze_stock(request: AnalysisRequest):
     company_name = data_pack['market']['name']
     bt_info = f"动量策略回测胜率: {data_pack['backtest']['win_rate']}%, 夏普: {data_pack['backtest']['sharpe']}, 最大回撤: {data_pack['backtest']['max_dd']}%"
 
-    sys_prompt = f"""你是一个顶尖的华尔街量化投研委员会。
-    当前分析目标：{company_name} (代码: {ticker})。
-    
-    【核心纪律】：
-    1. 你必须指出 {company_name} 是做哪块业务的（如：金矿、SaaS、消费电子等）。
-    2. 绝对禁止使用“宏观环境向好”、“政策支持”、“基本面良好”这类万能废话！如果不知道该公司，就直说“缺乏该公司的深度基本面数据”。
-    3. Quant Agent 必须结合传入的回测数据 ({bt_info}) 给出技术点评。
-    
-    请输出严格的 JSON：
-    {{
-      "radar": {{"theme": "具体的行业主题", "sector_trend": "具体的微观趋势"}},
-      "agents": {{
-        "macro": {{"stance": "看多/看空/中立", "opinion": "结合其主营业务点出宏观催化剂(50字)"}},
-        "quant": {{"stance": "看多/看空/中立", "opinion": "结合回测数据点评技术面(50字)"}},
-        "risk": {{"stance": "警告/安全", "opinion": "指出该行业的特定黑天鹅风险(50字)"}},
-        "sentiment": {{"stance": "贪婪/恐惧/中立", "opinion": "筹码与资金博弈推演(50字)"}},
-        "valuation": {{"stance": "低估/高估/合理", "opinion": "估值水平判断(50字)"}}
-      }},
-      "chair": {{
-        "score": 0-100整数, "action": "STRONG BUY/BUY/HOLD/SELL/STRONG SELL",
+    # 【修复 400 错误】：采用纯字符串拼接，坚决不使用带括号的 f-string 逃逸
+    json_schema = """{
+      "radar": {"theme": "具体的行业主题", "sector_trend": "具体的微观趋势"},
+      "agents": {
+        "macro": {"stance": "看多/看空/中立", "opinion": "结合主营业务点出宏观催化剂(50字)"},
+        "quant": {"stance": "看多/看空/中立", "opinion": "结合回测数据点评技术面(50字)"},
+        "risk": {"stance": "警告/安全", "opinion": "指出该行业的特定黑天鹅风险(50字)"},
+        "sentiment": {"stance": "贪婪/恐惧/中立", "opinion": "筹码与资金博弈推演(50字)"},
+        "valuation": {"stance": "低估/高估/合理", "opinion": "估值水平判断(50字)"}
+      },
+      "chair": {
+        "score": 85, "action": "STRONG BUY/BUY/HOLD/SELL/STRONG SELL",
         "bull_case": "一条具体的看多理由", "bear_case": "一条具体的看空理由", "summary": "冷血的最终裁决"
-      }}
-    }}"""
+      }
+    }"""
+
+    sys_prompt = f"你是一个顶尖的华尔街量化投研委员会。\n当前分析目标：{company_name} (代码: {ticker})。\n\n【核心纪律】：\n1. 你必须指出 {company_name} 是做哪块业务的。\n2. 绝对禁止使用万能废话！\n3. Quant Agent 必须结合传入的回测数据 ({bt_info}) 给出技术点评。\n\n请输出严格的 JSON 格式，期望的数据结构如下：\n{json_schema}"
 
     data = {
         "model": "gpt-4o-mini",
         "messages": [
-            {"role": "user", "content": f"请开始对 {company_name} ({ticker}) 的研判。"}
+            {"role": "system", "content": sys_prompt},
+            {"role": "user", "content": f"请开始对 {company_name} ({ticker}) 的研判。必须返回 JSON。"}
         ],
         "response_format": {"type": "json_object"},
         "temperature": 0.4
@@ -222,5 +224,9 @@ async def analyze_stock(request: AnalysisRequest):
             content["market_info"]["resolved_ticker"] = ticker
             content["backtest"] = data_pack["backtest"]
             return content
+    # 【致命排雷】：如果 OpenAI 再次 400，拦截并打印真实死因
+    except HTTPError as e:
+        err_body = e.read().decode('utf-8')
+        return {"error": True, "message": f"OpenAI 拒绝了请求，详细错误: {err_body}"}
     except Exception as e:
-        return {"error": True, "message": f"AI 引擎响应异常: {str(e)}"}
+        return {"error": True, "message": f"AI 引擎网络异常: {str(e)}"}
