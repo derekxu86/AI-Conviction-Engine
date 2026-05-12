@@ -25,16 +25,12 @@ async def serve_frontend():
 async def search_stock(q: str):
     if not q: return []
     results = []
-    
-    # 核心修复 1：清洗查询词，去掉后缀，让东方财富能听懂
     clean_q = q.upper().replace('.SZ', '').replace('.SS', '').replace('.HK', '')
     
-    # 引擎 1：东方财富 API (精准匹配A股中文)
     try:
         token = "D43BF722C8E33BDC906FB84D85E326E8"
         east_url = f"https://searchapi.eastmoney.com/api/suggest/get?input={urllib.parse.quote(clean_q)}&type=14&token={token}&count=5"
         east_req = urllib.request.Request(east_url, headers={'User-Agent': 'Mozilla/5.0'})
-        
         with urllib.request.urlopen(east_req, timeout=3) as res:
             east_data = json.loads(res.read().decode('utf-8'))
             if "QuotationCodeTable" in east_data and "Data" in east_data["QuotationCodeTable"]:
@@ -42,16 +38,13 @@ async def search_stock(q: str):
                     code = item.get("Code")
                     name = item.get("Name")
                     market_type = str(item.get("MarketType"))
-                    
                     y_ticker = code
                     if market_type == "1": y_ticker = code + ".SS"
                     elif market_type == "2": y_ticker = code + ".SZ"
                     elif market_type == "3": y_ticker = code + ".HK"
-                    
                     results.append({"symbol": y_ticker, "name": name, "raw": code})
     except Exception: pass
 
-    # 引擎 2：Yahoo (补全美股/澳洲股全称)
     try:
         y_url = f"https://query2.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(q)}"
         y_req = urllib.request.Request(y_url, headers={'User-Agent': 'Mozilla/5.0'})
@@ -68,7 +61,6 @@ async def search_stock(q: str):
     return results[:8]
 
 def get_market_and_backtest_data(ticker, known_name=""):
-    # 核心修复 2：如果名字是空的，强制去 Yahoo 抓取官方英文/中文全称
     final_name = known_name
     if not final_name or final_name == ticker:
         try:
@@ -91,7 +83,6 @@ def get_market_and_backtest_data(ticker, known_name=""):
             
             result = data['chart']['result'][0]
             meta = result['meta']
-            
             timestamps = result.get('timestamp', [])
             raw_prices = result['indicators']['quote'][0]['close']
             
@@ -154,9 +145,7 @@ def get_market_and_backtest_data(ticker, known_name=""):
             return {
                 "market": {
                     "name": final_name,
-                    "price": round(price, 2), 
-                    "change": round(change, 2),
-                    "change_pct": round(change_pct, 2), 
+                    "price": round(price, 2), "change": round(change, 2), "change_pct": round(change_pct, 2), 
                     "currency": meta.get('currency', 'USD'),
                     "trend": {"dates": dates_list, "prices": prices_list}
                 },
@@ -173,7 +162,6 @@ async def analyze_stock(request: AnalysisRequest):
 
     if not api_key: return {"error": True, "message": "服务端未配置 OPENAI_API_KEY"}
 
-    # 如果前端因为缓存没传过来名字，我们强制搜一遍
     if not req_name or req_name == ticker:
         suggestions = await search_stock(original_input)
         if suggestions:
@@ -181,58 +169,72 @@ async def analyze_stock(request: AnalysisRequest):
             req_name = suggestions[0]["name"]
 
     data_pack = get_market_and_backtest_data(ticker, known_name=req_name)
-    
     if not data_pack:
-        return {"error": True, "message": f"未找到标的: {original_input}。请确认代码是否正确。"}
+        return {"error": True, "message": f"未找到标的: {original_input}。"}
 
     url = "https://api.openai.com/v1/chat/completions"
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
     
     company_name = data_pack['market']['name']
-    bt_info = f"动量策略(SMA20/50)回测 -> 胜率: {data_pack['backtest']['win_rate']}%, 夏普比率: {data_pack['backtest']['sharpe']}, 最大回撤: {data_pack['backtest']['max_dd']}%"
+    bt_info = f"动量策略近期回测 -> 胜率: {data_pack['backtest']['win_rate']}%, 夏普: {data_pack['backtest']['sharpe']}, 最大回撤: {data_pack['backtest']['max_dd']}%"
 
-    # 核心修复 3：防幻觉的铁血 Prompt
-    sys_prompt = f"""你是一个华尔街顶级对冲基金的高级研究员组合。
+    # 【深度优化的 Prompt】：解决评分过高、内容过短的问题
+    sys_prompt = f"""你是一个顶级的 AI 投资决策引擎终端，拥有极度冷血、客观的分析能力。
+    当前分析目标：【{company_name}】(代码: {ticker})。
     
-    【核心铁律】：
-    1. 你当前分析的真实公司是：【{company_name}】(代码: {ticker})。
-    2. 绝不允许望文生义！例如 NVA 可能是 Nova Minerals 矿业勘探，002626 是 金达威(保健品/辅酶Q10)。你必须基于你的知识库确认其主业。如果拿不准，请直接回答“无法确认主营业务，拒绝分析”。
-    3. 每个 Agent 的分析必须极度详实，指出具体的业务、财报隐患或行业竞争，字数【绝对不可少于80字】！禁止一句话敷衍。
+    【核心打分纪律（极其重要）】：
+    1. 你的 Conviction Score 和所有因子分数必须严格反映现实情况，绝不允许无脑看多！
+    2. 分数范围必须分布在 10 到 95 之间。如果回测数据差、基本面有瑕疵，总分必须低于 50 分！如果极度糟糕，请打出 20 分。
+    3. Quant 因子分数必须直接基于回测表现（{bt_info}），若胜率低或回撤大，必须给低分。
     
+    【核心输出纪律】：
+    1. Market Regime & Rotation：首先判断当前全局市场处于什么周期，以及资金从哪个板块流向哪个板块。
+    2. 五大 Agent 具有鲜明人格。每个 Agent 的 opinion 字段必须输出【至少100字以上的深度段落】，并且必须包含确凿的业务逻辑、数据支撑或逻辑推演。严禁一句废话。
+       - Macro Hawk: 宏观与基本面，用数据说话。
+       - Quant Trader: 只看盘面动量和回测。
+       - Risk Officer: 寻找致命的风险点。
+       - Narrative Analyst: 讲出市场正在炒作的故事或情绪。
+       - Deep Value: 批判当前的估值水平。
+
     请严格输出纯 JSON 格式：
     {{
-      "radar": {{"theme": "具体的产业逻辑或主线", "sector_trend": "行业当前周期的微观状态"}},
-      "agents": {{
-        "macro": {{"stance": "看多/看空/中立", "opinion": "【字数80+】基于真实公司主营业务展开，点明该产业面临的原材料周期、宏观政策催化或出海逻辑。"}},
-        "quant": {{"stance": "看多/看空/中立", "opinion": "【字数80+】深度解读传给你的回测胜率与夏普比率({bt_info})，结合价格走势评估动量策略。"}},
-        "risk": {{"stance": "警告/安全", "opinion": "【字数80+】一针见血指出特定雷区，例如地缘制裁、成本上升、或特定竞争对手带来的压力。"}},
-        "sentiment": {{"stance": "贪婪/恐惧/中立", "opinion": "【字数80+】判断当前资金更偏好哪类资产，这家公司近期是否被机构抱团或冷落。"}},
-        "valuation": {{"stance": "低估/高估/合理", "opinion": "【字数80+】判断它在同业中的估值倍数溢价情况，探讨目前股价是否透支了未来业绩。"}}
+      "regime": {{
+        "current": "当前市场周期定位 (如: 处于防守轮动期、科技成长主导期等)",
+        "rotation_map": "资金轮动路径推演 (如: Mega-cap AI -> 智能制造 -> 现金)"
       }},
-      "chair": {{
-        "score": 85, "action": "STRONG BUY/BUY/HOLD/SELL/STRONG SELL",
-        "bull_case": "具体看多催化剂", "bear_case": "具体看空黑天鹅", "summary": "综合主席最终研判"
+      "conviction": {{
+        "total": "综合评分(0-100间的整数，请严格打分，差股票绝不留情)",
+        "factors": {{"macro": "整数", "momentum": "整数", "flow": "整数", "sentiment": "整数", "valuation": "整数"}},
+        "timeline": {{"three_weeks_ago": "整数", "two_weeks_ago": "整数", "current": "整数", "reason": "短期分数变化的核心原因解释"}}
+      }},
+      "agents": {{
+        "macro_hawk": {{"stance": "看多/看空/中立", "opinion": "【必填：不少于100字的深度长文】宏观流动性与公司基本面核心逻辑深度分析..."}},
+        "quant_trader": {{"stance": "看多/看空/中立", "opinion": "【必填：不少于100字的深度长文】结合回测胜率、夏普比率的盘面动量深度解析..."}},
+        "risk_officer": {{"stance": "警告/安全", "opinion": "【必填：不少于100字的深度长文】深度剖析公司可能面临的黑天鹅、财报隐患或行业雷区..."}},
+        "narrative_analyst": {{"stance": "贪婪/恐惧/中立", "opinion": "【必填：不少于100字的深度长文】洞察当前市场对该标的叙事逻辑与资金抱团/抛售情绪..."}},
+        "deep_value": {{"stance": "低估/高估/合理", "opinion": "【必填：不少于100字的深度长文】批判性分析当前估值是否透支未来，同业性价比如何..."}}
+      }},
+      "committee": {{
+        "bull_case": "具体、深刻的看多核心逻辑",
+        "bear_case": "具体、致命的看空黑天鹅(必填)",
+        "action": "STRONG BUY/BUY/HOLD/SELL/STRONG SELL"
       }}
     }}"""
 
     data = {
         "model": "gpt-4o-mini",
-        "messages": [
-            {"role": "user", "content": sys_prompt}
-        ],
+        "messages": [{"role": "user", "content": sys_prompt}],
         "response_format": {"type": "json_object"},
-        "temperature": 0.3 # 温度降至0.3，让AI像机器一样理性输出
+        "temperature": 0.5 
     }
 
     try:
         req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers=headers)
-        with urllib.request.urlopen(req, timeout=20) as response:
+        with urllib.request.urlopen(req, timeout=25) as response:
             result = json.loads(response.read().decode("utf-8"))
             content = json.loads(result["choices"][0]["message"]["content"])
-            
             content["market_info"] = data_pack["market"]
-            content["market_info"]["resolved_ticker"] = ticker
             content["backtest"] = data_pack["backtest"]
             return content
     except Exception as e:
-        return {"error": True, "message": f"AI 引擎网络请求异常: {str(e)}"}
+        return {"error": True, "message": f"网络异常: {str(e)}"}
