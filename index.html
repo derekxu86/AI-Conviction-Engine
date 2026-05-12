@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Conviction Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0f172a', card: '#1e293b', primary: '#3b82f6',
+                        success: '#10b981', danger: '#ef4444'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-dark text-gray-200 font-sans min-h-screen p-6">
+    <div class="max-w-6xl mx-auto">
+        <header class="flex items-center justify-between mb-8 border-b border-gray-700 pb-4">
+            <div>
+                <h1 class="text-3xl font-bold text-white tracking-wider flex items-center">
+                    <span class="text-primary mr-2">⚡</span> AI Conviction Engine
+                </h1>
+                <p class="text-sm text-gray-400 mt-1">Multi-Agent 投资决策与量化验证平台</p>
+            </div>
+            <div class="text-xs bg-card px-3 py-1 rounded-full border border-gray-600">
+                Status: <span class="text-success font-bold">Vercel Cloud Mode</span>
+            </div>
+        </header>
+
+        <section class="bg-card rounded-xl p-6 mb-8 shadow-lg border border-gray-700">
+            <h2 class="text-xl font-semibold text-white mb-4">🎯 机会雷达 (AI Radar)</h2>
+            <div class="flex gap-4">
+                <input type="text" id="tickerInput" placeholder="输入股票代码 (如: NVDA, AAPL)" 
+                       class="flex-1 bg-dark border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition uppercase"
+                       value="NVDA">
+                <button id="analyzeBtn" onclick="startAnalysis()" 
+                        class="bg-primary hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-lg transition shadow-[0_0_15px_rgba(59,130,246,0.4)]">
+                    开始深度分析
+                </button>
+            </div>
+        </section>
+
+        <div id="loadingIndicator" class="hidden flex flex-col items-center justify-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
+            <p class="text-gray-400 animate-pulse" id="loadingText">唤醒 Multi-Agent 投资委员会中...</p>
+        </div>
+
+        <div id="resultsDashboard" class="hidden space-y-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-card p-6 rounded-xl border border-gray-700 border-l-4 border-l-primary flex flex-col justify-center">
+                    <p class="text-sm text-gray-400 mb-1">目标资产</p>
+                    <h3 class="text-4xl font-bold text-white" id="resTicker">NVDA</h3>
+                </div>
+                <div class="bg-card p-6 rounded-xl border border-gray-700 border-l-4 border-l-success flex flex-col justify-center">
+                    <p class="text-sm text-gray-400 mb-1">AI Conviction Score</p>
+                    <h3 class="text-4xl font-bold text-success" id="resScore">85 <span class="text-xl text-gray-400">/ 100</span></h3>
+                </div>
+                <div class="bg-card p-6 rounded-xl border border-gray-700 border-l-4 border-l-danger flex flex-col justify-center">
+                    <p class="text-sm text-gray-400 mb-1">操作建议</p>
+                    <h3 class="text-4xl font-bold text-danger" id="resAction">STRONG BUY</h3>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-2 space-y-4">
+                    <h2 class="text-xl font-semibold text-white mb-4 border-b border-gray-700 pb-2">🤖 投资委员会 (Multi-Agent)</h2>
+                    
+                    <div class="bg-card p-4 rounded-lg border border-yellow-600/50">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="font-bold text-yellow-500">⚖️ Committee Chair (主席总结)</span>
+                        </div>
+                        <p class="text-sm text-gray-300" id="resSummary">加载中...</p>
+                    </div>
+                </div>
+
+                <div>
+                    <h2 class="text-xl font-semibold text-white mb-4 border-b border-gray-700 pb-2">📈 策略验证</h2>
+                    <div class="bg-card p-5 rounded-xl border border-gray-700">
+                        <div class="relative h-48 w-full"><canvas id="equityChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let chartInstance = null;
+
+        async function startAnalysis() {
+            const ticker = document.getElementById('tickerInput').value || 'NVDA';
+            const btn = document.getElementById('analyzeBtn');
+            const loading = document.getElementById('loadingIndicator');
+            const loadingText = document.getElementById('loadingText');
+            const dashboard = document.getElementById('resultsDashboard');
+
+            btn.disabled = true; btn.classList.add('opacity-50');
+            dashboard.classList.add('hidden'); loading.classList.remove('hidden');
+            document.getElementById('resTicker').innerText = ticker.toUpperCase();
+            loadingText.innerText = "正在云端呼叫 Python 委员会...";
+
+            try {
+                // 注意这里：改为了相对路径 /api/analyze，适配 Vercel 环境
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ticker: ticker })
+                });
+
+                if (!response.ok) throw new Error("网络错误");
+                const resultData = await response.json();
+                
+                // 动态更新页面数据
+                document.getElementById('resScore').innerHTML = `${resultData.score} <span class="text-xl text-gray-400">/ 100</span>`;
+                document.getElementById('resAction').innerText = resultData.action;
+                document.getElementById('resSummary').innerHTML = `
+                    <b>看多逻辑 (Bull Case):</b> ${resultData.bull_case}<br><br>
+                    <b>风险提示 (Bear Case):</b> ${resultData.bear_case}
+                `;
+
+                loading.classList.add('hidden'); dashboard.classList.remove('hidden');
+                btn.disabled = false; btn.classList.remove('opacity-50');
+                renderChart();
+
+            } catch (error) {
+                console.error("请求出错:", error);
+                loadingText.innerText = "连接服务器失败！";
+                btn.disabled = false; btn.classList.remove('opacity-50');
+            }
+        }
+
+        function renderChart() {
+            const ctx = document.getElementById('equityChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+            const labels = Array.from({length: 30}, (_, i) => `Day ${i+1}`);
+            let value = 10000; const dataPoints = [value];
+            for(let i = 1; i < 30; i++) { value += (Math.random() - 0.3) * 500; dataPoints.push(value); }
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: { labels: labels, datasets: [{ data: dataPoints, borderColor: '#10b981', fill: true, tension: 0.4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false } } }
+            });
+        }
+    </script>
+</body>
+</html>
