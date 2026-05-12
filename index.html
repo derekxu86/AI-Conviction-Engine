@@ -3,131 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Conviction Engine</title>
+    <title>AI Intelligence Terminal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        tailwind.config = {
-            theme: { extend: { colors: { dark: '#080c14', card: '#121a28', primary: '#3b82f6', success: '#10b981', danger: '#ef4444', warning: '#f59e0b' } } }
-        }
+        tailwind.config = { theme: { extend: { colors: { dark: '#0a0e17', card: '#131b2b', primary: '#3b82f6', success: '#10b981', danger: '#ef4444', warning: '#f59e0b' } } } }
     </script>
     <style>
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-        .blink { animation: blinker 1s linear infinite; }
-        @keyframes blinker { 50% { opacity: 0; } }
+        .agent-card { transition: all 0.2s ease-in-out; }
+        .agent-card:hover { transform: translateY(-2px); border-color: #3b82f6; }
     </style>
 </head>
 <body class="bg-dark text-gray-200 font-sans min-h-screen p-4 md:p-6">
-
     <div class="max-w-7xl mx-auto space-y-6">
         <header class="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-800 pb-4 gap-4">
             <div>
-                <h1 class="text-3xl font-black text-white flex items-center tracking-tight">
-                    <span class="text-primary mr-2">◈</span> AI Conviction Engine
+                <h1 class="text-2xl font-black text-white tracking-tight flex items-center">
+                    <span class="text-primary mr-2">◈</span> AI Decision Engine
                 </h1>
+                <p class="text-xs text-gray-500 mt-1">Market Regime & Multi-Agent Intelligence</p>
             </div>
             <div class="relative w-full md:w-[400px] z-50">
                 <input type="text" id="tickerInput" autocomplete="off" oninput="handleSearch(this.value)" 
-                       placeholder="搜股票/拼音 (如 AAPL, pfyh)..." 
-                       class="w-full bg-[#1e293b] border border-gray-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-primary pl-10 shadow-inner">
-                <svg class="w-4 h-4 absolute left-3.5 top-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                <button onclick="startAnalysis()" class="absolute right-1.5 top-1.5 bg-primary hover:bg-blue-600 text-white text-xs font-bold py-1 px-3 rounded">AI 研判</button>
-                <ul id="searchDropdown" class="absolute w-full mt-1 bg-card border border-gray-700 rounded-lg shadow-2xl hidden max-h-72 overflow-y-auto divide-y divide-gray-800"></ul>
+                       placeholder="搜索全球股票或 A 股拼音..." class="w-full bg-[#1e293b] border border-gray-700 rounded px-4 py-2 text-sm text-white focus:outline-none focus:border-primary">
+                <button onclick="startAnalysis()" class="absolute right-1.5 top-1.5 bg-primary hover:bg-blue-600 transition text-white text-xs font-bold py-1 px-3 rounded">AI 研判</button>
+                <ul id="searchDropdown" class="absolute w-full mt-1 bg-card border border-gray-700 rounded shadow-2xl hidden max-h-72 overflow-y-auto"></ul>
             </div>
         </header>
 
-        <div id="errorAlert" class="hidden bg-red-500/10 border border-red-500/50 text-red-400 p-4 rounded-lg text-sm"></div>
+        <div id="errorAlert" class="hidden bg-red-500/10 border border-red-500/50 text-red-400 p-4 rounded text-sm"></div>
 
-        <div id="discoveryPanel" class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
-            <div class="bg-card border border-gray-800 rounded-xl p-5 hover:border-gray-600 cursor-pointer transition" onclick="selectAndAnalyze('NVDA', '英伟达')">
-                <span class="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded">美股核心算力</span>
-                <h3 class="text-2xl font-bold text-white mt-3">NVDA</h3>
-                <p class="text-sm text-gray-400 mb-4">英伟达</p>
-                <div class="text-xs text-primary font-bold">▶ 运行多智能体回测分析</div>
-            </div>
-            <div class="bg-card border border-gray-800 rounded-xl p-5 hover:border-gray-600 cursor-pointer transition" onclick="selectAndAnalyze('600519.SS', '贵州茅台')">
-                <span class="text-xs font-bold text-rose-400 bg-rose-400/10 px-2 py-1 rounded">A股价值核心</span>
-                <h3 class="text-2xl font-bold text-white mt-3">600519</h3>
-                <p class="text-sm text-gray-400 mb-4">贵州茅台</p>
-                <div class="text-xs text-primary font-bold">▶ 运行多智能体回测分析</div>
-            </div>
-            <div class="bg-card border border-gray-800 rounded-xl p-5 hover:border-gray-600 cursor-pointer transition" onclick="selectAndAnalyze('MSTR', '微策略')">
-                <span class="text-xs font-bold text-warning bg-warning/10 px-2 py-1 rounded">高波动资产</span>
-                <h3 class="text-2xl font-bold text-white mt-3">MSTR</h3>
-                <p class="text-sm text-gray-400 mb-4">MicroStrategy</p>
-                <div class="text-xs text-primary font-bold">▶ 运行多智能体回测分析</div>
-            </div>
-        </div>
-
-        <div id="gatewayLogs" class="hidden bg-[#0d1117] border border-gray-800 rounded-lg p-4 font-mono text-xs text-gray-400 h-40 overflow-y-auto shadow-inner">
-            <div class="text-emerald-500 mb-2">Agent Gateway (MCP) Initialized.</div>
-            <div id="logStream"></div>
-            <div class="text-gray-500 mt-2">> <span class="blink">_</span></div>
-        </div>
-
-        <div id="resultsDashboard" class="hidden space-y-6 pt-4">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="lg:col-span-2 bg-gradient-to-r from-card to-gray-900 rounded-xl p-6 border border-gray-800 shadow-lg flex flex-col">
-                    <div class="flex justify-between items-start mb-4">
-                        <div>
-                            <div class="text-xs text-gray-400 mb-1 font-bold tracking-widest uppercase" id="resCompanyName">Target Asset</div>
-                            <h2 class="text-4xl font-black text-white" id="resTicker">-</h2>
-                            <div class="mt-3 flex gap-3">
-                                <span class="text-xs bg-primary/20 text-primary border border-primary/30 px-2 py-1 rounded" id="radarTheme">Theme: -</span>
-                                <span class="text-xs bg-gray-800 text-gray-300 border border-gray-700 px-2 py-1 rounded" id="radarTrend">Trend: -</span>
-                            </div>
+        <div id="resultsDashboard" class="hidden space-y-6">
+            
+            <!-- 全局视角：Market Context -->
+            <div class="bg-gradient-to-r from-card to-[#1e293b] border border-gray-800 rounded-xl p-5 shadow-lg relative overflow-hidden">
+                <div class="absolute right-0 top-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-20 -mt-20"></div>
+                <div class="flex flex-col md:flex-row justify-between gap-6 relative z-10">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-2">
+                            <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+                            <span class="text-xs font-bold text-primary tracking-widest uppercase">Market Regime Engine</span>
                         </div>
-                        <div class="text-right">
-                            <div class="text-3xl font-bold text-white" id="resPrice">-</div>
-                            <div id="resChange" class="text-sm font-bold mt-1 px-2 py-1 rounded inline-block bg-gray-800 text-gray-400">-</div>
+                        <h2 class="text-lg font-bold text-white" id="resRegime">-</h2>
+                    </div>
+                    <div class="flex-1 md:border-l md:border-gray-700 md:pl-6">
+                        <div class="flex items-center gap-2 mb-2">
+                            <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            <span class="text-xs font-bold text-emerald-400 tracking-widest uppercase">Theme Rotation Map</span>
                         </div>
+                        <h2 class="text-sm font-mono text-gray-300" id="resRotation">-</h2>
                     </div>
-                    <div class="flex-1 w-full relative min-h-[120px] mt-2 border-t border-gray-800/50 pt-4">
-                        <canvas id="priceTrendChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="bg-card rounded-xl p-5 border border-gray-800 shadow-lg flex flex-col">
-                    <div class="text-xs text-gray-500 mb-3 font-bold tracking-widest uppercase border-b border-gray-800 pb-2">Quant Validation (Momentum)</div>
-                    <div class="grid grid-cols-3 gap-2 mb-3">
-                        <div class="bg-[#0f172a] p-2 rounded text-center"><p class="text-[10px] text-gray-500">Win Rate</p><p class="font-bold text-emerald-400" id="btWin">-</p></div>
-                        <div class="bg-[#0f172a] p-2 rounded text-center"><p class="text-[10px] text-gray-500">Sharpe</p><p class="font-bold text-white" id="btSharpe">-</p></div>
-                        <div class="bg-[#0f172a] p-2 rounded text-center"><p class="text-[10px] text-gray-500">Max DD</p><p class="font-bold text-danger" id="btDd">-</p></div>
-                    </div>
-                    <div class="flex-1 min-h-[60px] relative"><canvas id="backtestChart"></canvas></div>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <div class="lg:col-span-4 bg-gradient-to-b from-[#1e293b] to-card border border-yellow-600/30 p-6 rounded-xl shadow-xl relative overflow-hidden">
-                    <div class="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
-                    <h3 class="text-xs font-bold text-yellow-500 uppercase tracking-widest mb-4 flex items-center border-b border-gray-700 pb-3"><span class="text-lg mr-2">⚖️</span> Committee Chair Verdict</h3>
-                    <div class="grid grid-cols-2 gap-4 mb-6">
-                        <div><p class="text-[10px] text-gray-500 uppercase">Conviction</p><p class="text-5xl font-black text-white" id="resScore">-</p></div>
-                        <div><p class="text-[10px] text-gray-500 uppercase">Action</p><p class="text-2xl font-black mt-2" id="resAction">-</p></div>
+                
+                <!-- 左侧栏：资产追踪与量化拆解 -->
+                <div class="lg:col-span-4 space-y-6">
+                    <!-- Target Asset Card -->
+                    <div class="bg-card border border-gray-800 p-5 rounded-xl shadow-lg">
+                        <div class="text-xs text-gray-500 uppercase font-bold tracking-widest mb-1" id="resCompanyName">Target Asset</div>
+                        <h2 class="text-3xl font-black text-white" id="resTicker">-</h2>
+                        <div class="flex items-end gap-2 mt-3">
+                            <span class="text-3xl font-bold text-white" id="resPrice">-</span>
+                            <span id="resChange" class="text-sm font-bold bg-gray-800 px-2 py-1 rounded mb-1">-</span>
+                        </div>
+                        <div class="h-28 mt-5 border-t border-gray-800/50 pt-3"><canvas id="priceTrendChart"></canvas></div>
                     </div>
-                    <div class="space-y-3 text-sm">
-                        <div class="bg-success/10 border border-success/20 p-3 rounded"><strong class="text-success text-xs">Bull Case:</strong> <span class="text-gray-300" id="resBull">-</span></div>
-                        <div class="bg-danger/10 border border-danger/20 p-3 rounded"><strong class="text-danger text-xs">Bear Case:</strong> <span class="text-gray-300" id="resBear">-</span></div>
-                        <div class="bg-black/30 p-3 rounded"><strong class="text-gray-400 text-xs">Summary:</strong> <span class="text-gray-300" id="resSummary">-</span></div>
+
+                    <!-- Explainable Conviction Score -->
+                    <div class="bg-card border border-gray-800 p-5 rounded-xl shadow-lg">
+                        <div class="flex justify-between items-center mb-5 border-b border-gray-800 pb-3">
+                            <span class="text-sm text-gray-300 uppercase font-bold">Total Conviction</span>
+                            <span class="text-4xl font-black text-white" id="resScore">-</span>
+                        </div>
+                        <!-- Factor Bars -->
+                        <div class="space-y-4 text-xs font-bold" id="factorBars"></div>
+                        
+                        <!-- Timeline -->
+                        <div class="mt-5 pt-4 border-t border-gray-800 bg-[#0f172a] rounded p-3">
+                            <span class="text-[10px] text-gray-500 uppercase tracking-wider block mb-2">Conviction Timeline</span>
+                            <div class="flex justify-between text-xs text-gray-400 border-b border-gray-700/50 pb-2 mb-2">
+                                <span>3W Ago: <b class="text-white text-sm ml-1" id="time3w">-</b></span>
+                                <span>2W Ago: <b class="text-white text-sm ml-1" id="time2w">-</b></span>
+                                <span>Now: <b class="text-primary text-sm ml-1" id="timeNow">-</b></span>
+                            </div>
+                            <p class="text-xs text-gray-400 leading-relaxed" id="timeReason">-</p>
+                        </div>
+                    </div>
+
+                    <!-- Quant Validation Layer -->
+                    <div class="bg-card border border-gray-800 p-5 rounded-xl shadow-lg">
+                        <span class="text-xs text-gray-400 uppercase font-bold mb-4 block flex items-center"><svg class="w-4 h-4 mr-1 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>Quant Validation (Momentum)</span>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="bg-[#0f172a] p-3 rounded-lg text-center border border-gray-800"><p class="text-[10px] text-gray-500 mb-1">Win Rate</p><p class="font-bold text-emerald-400 text-sm" id="btWin">-</p></div>
+                            <div class="bg-[#0f172a] p-3 rounded-lg text-center border border-gray-800"><p class="text-[10px] text-gray-500 mb-1">Sharpe</p><p class="font-bold text-white text-sm" id="btSharpe">-</p></div>
+                            <div class="bg-[#0f172a] p-3 rounded-lg text-center border border-gray-800"><p class="text-[10px] text-gray-500 mb-1">Max DD</p><p class="font-bold text-danger text-sm" id="btDd">-</p></div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="lg:col-span-8 grid grid-cols-1 gap-4">
-                    <div class="bg-card border border-gray-800 p-5 rounded-xl"><div class="flex justify-between mb-3"><span class="font-bold text-blue-400 text-sm">🌍 Macro Agent</span><span id="stMacro" class="text-xs px-2 py-0.5 rounded bg-gray-800 border border-gray-700 font-bold">-</span></div><p class="text-sm text-gray-300 leading-relaxed" id="opMacro">-</p></div>
-                    <div class="bg-card border border-gray-800 p-5 rounded-xl"><div class="flex justify-between mb-3"><span class="font-bold text-emerald-400 text-sm">📈 Quant Agent</span><span id="stQuant" class="text-xs px-2 py-0.5 rounded bg-gray-800 border border-gray-700 font-bold">-</span></div><p class="text-sm text-gray-300 leading-relaxed" id="opQuant">-</p></div>
-                    <div class="bg-card border border-gray-800 p-5 rounded-xl"><div class="flex justify-between mb-3"><span class="font-bold text-rose-400 text-sm">🛡️ Risk Agent</span><span id="stRisk" class="text-xs px-2 py-0.5 rounded bg-gray-800 border border-gray-700 font-bold">-</span></div><p class="text-sm text-gray-300 leading-relaxed" id="opRisk">-</p></div>
-                    <div class="bg-card border border-gray-800 p-5 rounded-xl"><div class="flex justify-between mb-3"><span class="font-bold text-purple-400 text-sm">🔥 Sentiment Agent</span><span id="stSentiment" class="text-xs px-2 py-0.5 rounded bg-gray-800 border border-gray-700 font-bold">-</span></div><p class="text-sm text-gray-300 leading-relaxed" id="opSentiment">-</p></div>
-                    <div class="bg-card border border-gray-800 p-5 rounded-xl"><div class="flex justify-between mb-3"><span class="font-bold text-amber-400 text-sm">💎 Valuation Agent</span><span id="stValuation" class="text-xs px-2 py-0.5 rounded bg-gray-800 border border-gray-700 font-bold">-</span></div><p class="text-sm text-gray-300 leading-relaxed" id="opValuation">-</p></div>
+                <!-- 右侧栏：多智能体决议与 Feed -->
+                <div class="lg:col-span-8 space-y-6">
+                    
+                    <!-- Final Committee Verdict -->
+                    <div class="bg-gradient-to-br from-[#1e293b] to-card border border-yellow-600/30 p-6 rounded-xl shadow-xl relative overflow-hidden">
+                        <div class="flex justify-between items-center mb-5 border-b border-gray-700/50 pb-4">
+                            <span class="text-sm font-bold uppercase tracking-widest text-yellow-500 flex items-center"><span class="text-xl mr-2">⚖️</span> Final Committee View</span>
+                            <span class="text-3xl font-black tracking-tight" id="resAction">-</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 text-sm">
+                            <div class="bg-success/5 border border-success/20 p-4 rounded-lg relative">
+                                <span class="text-success font-black text-xs block mb-2 uppercase tracking-widest">Bull Case (反方/看多)</span>
+                                <p id="resBull" class="text-gray-300 leading-relaxed">-</p>
+                            </div>
+                            <div class="bg-danger/5 border border-danger/20 p-4 rounded-lg relative">
+                                <span class="text-danger font-black text-xs block mb-2 uppercase tracking-widest">Bear Case (反方/看空)</span>
+                                <p id="resBear" class="text-gray-300 leading-relaxed">-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Thesis Feed (Restored Cards) -->
+                    <div>
+                        <h3 class="text-xs text-gray-500 uppercase font-bold tracking-widest mb-4 flex items-center"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>AI Thesis Feed</h3>
+                        <div class="space-y-4">
+                            <div class="agent-card bg-card border border-gray-800 p-5 rounded-xl"><div class="flex justify-between items-center mb-3"><span class="font-bold text-blue-400 text-sm flex items-center"><span class="text-lg mr-2">🦅</span> Macro Hawk</span><span id="stMacro" class="text-[10px] px-2 py-0.5 rounded bg-gray-800 border border-gray-700 font-bold">-</span></div><p class="text-sm text-gray-300 leading-relaxed" id="opMacro">-</p></div>
+                            <div class="agent-card bg-card border border-gray-800 p-5 rounded-xl"><div class="flex justify-between items-center mb-3"><span class="font-bold text-emerald-400 text-sm flex items-center"><span class="text-lg mr-2">🤖</span> Quant Trader</span><span id="stQuant" class="text-[10px] px-2 py-0.5 rounded bg-gray-800 border border-gray-700 font-bold">-</span></div><p class="text-sm text-gray-300 leading-relaxed" id="opQuant">-</p></div>
+                            <div class="agent-card bg-card border border-gray-800 p-5 rounded-xl"><div class="flex justify-between items-center mb-3"><span class="font-bold text-rose-400 text-sm flex items-center"><span class="text-lg mr-2">🛡️</span> Risk Officer</span><span id="stRisk" class="text-[10px] px-2 py-0.5 rounded bg-gray-800 border border-gray-700 font-bold">-</span></div><p class="text-sm text-gray-300 leading-relaxed" id="opRisk">-</p></div>
+                            <div class="agent-card bg-card border border-gray-800 p-5 rounded-xl"><div class="flex justify-between items-center mb-3"><span class="font-bold text-purple-400 text-sm flex items-center"><span class="text-lg mr-2">🔥</span> Narrative Analyst</span><span id="stSentiment" class="text-[10px] px-2 py-0.5 rounded bg-gray-800 border border-gray-700 font-bold">-</span></div><p class="text-sm text-gray-300 leading-relaxed" id="opSentiment">-</p></div>
+                            <div class="agent-card bg-card border border-gray-800 p-5 rounded-xl"><div class="flex justify-between items-center mb-3"><span class="font-bold text-amber-400 text-sm flex items-center"><span class="text-lg mr-2">💎</span> Deep Value Analyst</span><span id="stValuation" class="text-[10px] px-2 py-0.5 rounded bg-gray-800 border border-gray-700 font-bold">-</span></div><p class="text-sm text-gray-300 leading-relaxed" id="opValuation">-</p></div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        let btChart = null;
         let priceChart = null;
         let searchTimeout = null;
         let activeSelectedName = ""; 
@@ -141,9 +158,10 @@
                 try {
                     const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
                     const data = await res.json();
-                    if (data.length === 0) dp.innerHTML = '<li class="px-4 py-3 text-xs text-gray-500">无匹配，点击研判尝试强搜</li>';
-                    else dp.innerHTML = data.map(i => `<li onclick="selectAndAnalyze('${i.symbol}', '${i.name}')" class="px-4 py-3 hover:bg-gray-800 cursor-pointer flex justify-between items-center border-b border-gray-800"><span class="font-bold text-white text-sm">${i.raw.toUpperCase()} <span class="text-xs font-normal text-gray-400 ml-2">${i.name}</span></span><span class="text-[10px] bg-gray-900 text-gray-500 px-2 py-1 rounded">${i.symbol}</span></li>`).join('');
-                    dp.classList.remove('hidden');
+                    if (data.length > 0) {
+                        dp.innerHTML = data.map(i => `<li onclick="selectAndAnalyze('${i.symbol}', '${i.name}')" class="px-4 py-3 hover:bg-gray-800 cursor-pointer flex justify-between items-center"><span class="font-bold text-white text-sm">${i.raw.toUpperCase()} <span class="text-xs font-normal text-gray-400 ml-2">${i.name}</span></span><span class="text-[10px] bg-gray-900 text-gray-500 px-2 py-1 rounded">${i.symbol}</span></li>`).join('');
+                        dp.classList.remove('hidden');
+                    }
                 } catch (e) {}
             }, 200); 
         }
@@ -155,129 +173,110 @@
             startAnalysis();
         }
 
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.relative')) document.getElementById('searchDropdown').classList.add('hidden');
-        });
-
-        async function runGatewayLogs(ticker) {
-            const stream = document.getElementById('logStream');
-            stream.innerHTML = '';
-            const steps = [
-                `> calling getMarketData(${ticker})...`,
-                `> calculating true price changes from OHLCV arrays...`,
-                `> resolving company official identity...`,
-                `> passing context to Deep-Dive Agents (Strict Token Limits Enforced)...`,
-                `> aggregating Multi-LLM analysis & waiting for Chair consensus...`
-            ];
-            for (let i=0; i<steps.length; i++) {
-                setTimeout(() => { stream.innerHTML += `<div>${steps[i]}</div>`; stream.parentElement.scrollTop = stream.parentElement.scrollHeight; }, i * 800);
-            }
-        }
-
         async function startAnalysis() {
             const ticker = document.getElementById('tickerInput').value.trim();
             if (!ticker) return;
-
-            document.getElementById('discoveryPanel').classList.add('hidden');
             document.getElementById('resultsDashboard').classList.add('hidden'); 
-            document.getElementById('errorAlert').classList.add('hidden');
-            document.getElementById('searchDropdown').classList.add('hidden');
             
-            const logs = document.getElementById('gatewayLogs');
-            logs.classList.remove('hidden');
-            runGatewayLogs(ticker);
-
             try {
                 const response = await fetch('/api/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ticker: ticker, name: activeSelectedName })
                 });
-
                 const result = await response.json();
-                logs.classList.add('hidden');
-                
-                if (result.error) {
-                    document.getElementById('errorAlert').innerText = result.message;
-                    document.getElementById('errorAlert').classList.remove('hidden');
-                } else {
-                    renderDashboard(result.market_info.resolved_ticker || ticker, result);
+                if (!result.error) {
+                    renderDashboard(ticker, result);
                     document.getElementById('resultsDashboard').classList.remove('hidden');
                 }
-            } catch (error) {
-                logs.classList.add('hidden');
-                document.getElementById('errorAlert').innerText = "系统请求超时，请重试。";
-                document.getElementById('errorAlert').classList.remove('hidden');
-            }
+            } catch (error) { console.error(error); }
         }
 
         function renderDashboard(ticker, data) {
+            document.getElementById('resRegime').innerText = data.regime.current;
+            document.getElementById('resRotation').innerText = data.regime.rotation_map;
+            
             document.getElementById('resTicker').innerText = ticker.toUpperCase();
             document.getElementById('resCompanyName').innerText = data.market_info.name; 
-            document.getElementById('radarTheme').innerText = `Theme: ${data.radar.theme}`;
-            document.getElementById('radarTrend').innerText = `Trend: ${data.radar.sector_trend}`;
-            
-            const changeEl = document.getElementById('resChange');
             const isUp = data.market_info.change >= 0;
             document.getElementById('resPrice').innerText = data.market_info.price;
-            changeEl.innerText = `${isUp ? '+' : ''}${data.market_info.change} (${isUp ? '+' : ''}${data.market_info.change_pct}%)`;
-            changeEl.className = `text-sm font-bold mt-1 px-2 py-1 rounded inline-block ${isUp ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'}`;
+            document.getElementById('resChange').innerText = `${isUp ? '+' : ''}${data.market_info.change_pct}%`;
+            document.getElementById('resChange').className = `text-sm font-bold px-2 py-1 rounded ${isUp ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'}`;
 
             if (data.market_info.trend && data.market_info.trend.prices.length > 0) {
                 renderPriceChart(data.market_info.trend.dates, data.market_info.trend.prices, isUp);
             }
 
-            document.getElementById('resScore').innerText = data.chair.score;
-            document.getElementById('resBull').innerText = data.chair.bull_case;
-            document.getElementById('resBear').innerText = data.chair.bear_case;
-            document.getElementById('resSummary').innerText = data.chair.summary;
-            const actionEl = document.getElementById('resAction');
-            actionEl.innerText = data.chair.action;
-            actionEl.className = `text-2xl font-black mt-2 ${data.chair.action.includes('BUY') ? 'text-success' : (data.chair.action.includes('SELL') ? 'text-danger' : 'text-warning')}`;
+            // 获取分值并设置颜色
+            const score = parseInt(data.conviction.total) || 0;
+            let scoreColor = 'text-white';
+            if (score >= 80) scoreColor = 'text-success';
+            else if (score <= 40) scoreColor = 'text-danger';
+            else scoreColor = 'text-warning';
+            
+            document.getElementById('resScore').innerText = score;
+            document.getElementById('resScore').className = `text-4xl font-black ${scoreColor}`;
+            
+            document.getElementById('time3w').innerText = data.conviction.timeline.three_weeks_ago;
+            document.getElementById('time2w').innerText = data.conviction.timeline.two_weeks_ago;
+            document.getElementById('timeNow').innerText = data.conviction.timeline.current;
+            document.getElementById('timeReason').innerText = data.conviction.timeline.reason;
 
-            const setAgent = (id, obj, color) => {
+            // 渲染动态因子进度条 (带颜色分类)
+            const f = data.conviction.factors;
+            let barHtml = '';
+            for (const [key, val] of Object.entries(f)) {
+                let barColor = 'bg-primary';
+                if (val >= 80) barColor = 'bg-success';
+                else if (val <= 40) barColor = 'bg-danger';
+                else barColor = 'bg-warning';
+                
+                barHtml += `
+                <div class="flex items-center justify-between">
+                    <span class="w-24 capitalize text-gray-400 truncate">${key}</span>
+                    <div class="flex-1 bg-dark h-2.5 rounded-full mx-3 overflow-hidden border border-gray-800">
+                        <div class="${barColor} h-full rounded-full" style="width: ${val}%"></div>
+                    </div>
+                    <span class="w-8 text-right text-gray-300 font-mono">${val}</span>
+                </div>`;
+            }
+            document.getElementById('factorBars').innerHTML = barHtml;
+
+            document.getElementById('resBull').innerText = data.committee.bull_case;
+            document.getElementById('resBear').innerText = data.committee.bear_case;
+            document.getElementById('resAction').innerText = data.committee.action;
+            document.getElementById('resAction').className = `text-3xl font-black ${data.committee.action.includes('BUY') ? 'text-success' : (data.committee.action.includes('SELL') ? 'text-danger' : 'text-warning')}`;
+
+            // 填充 5 个 Agent 内容及他们的立场颜色
+            const setAgent = (id, obj) => {
                 document.getElementById(`op${id}`).innerText = obj.opinion;
                 document.getElementById(`st${id}`).innerText = obj.stance;
-                document.getElementById(`st${id}`).className = `text-xs px-2 py-0.5 rounded bg-gray-800 border border-gray-700 font-bold ${color}`;
+                let sColor = 'text-gray-300';
+                if(obj.stance.includes('多') || obj.stance.includes('贪婪') || obj.stance.includes('低估') || obj.stance.includes('安全')) sColor = 'text-success';
+                if(obj.stance.includes('空') || obj.stance.includes('恐惧') || obj.stance.includes('高估') || obj.stance.includes('警告')) sColor = 'text-danger';
+                document.getElementById(`st${id}`).className = `text-[10px] px-2 py-0.5 rounded bg-gray-800 border border-gray-700 font-bold uppercase tracking-wider ${sColor}`;
             };
-            setAgent('Macro', data.agents.macro, 'text-blue-400');
-            setAgent('Quant', data.agents.quant, 'text-emerald-400');
-            setAgent('Risk', data.agents.risk, 'text-rose-400');
-            setAgent('Sentiment', data.agents.sentiment, 'text-purple-400');
-            setAgent('Valuation', data.agents.valuation, 'text-amber-400');
+
+            setAgent('Macro', data.agents.macro_hawk);
+            setAgent('Quant', data.agents.quant_trader);
+            setAgent('Risk', data.agents.risk_officer);
+            setAgent('Sentiment', data.agents.narrative_analyst);
+            setAgent('Valuation', data.agents.deep_value);
 
             if (data.backtest && data.backtest.trades > 0) {
                 document.getElementById('btWin').innerText = `${data.backtest.win_rate}%`;
                 document.getElementById('btSharpe').innerText = data.backtest.sharpe;
                 document.getElementById('btDd').innerText = `${data.backtest.max_dd}%`;
-                renderBacktestChart(data.backtest.equity_curve);
-            } else {
-                document.getElementById('btWin').innerText = 'N/A';
-                document.getElementById('btSharpe').innerText = 'N/A';
-                document.getElementById('btDd').innerText = 'N/A';
-                renderBacktestChart([]);
             }
         }
 
         function renderPriceChart(dates, prices, isUp) {
             const ctx = document.getElementById('priceTrendChart').getContext('2d');
             if (priceChart) priceChart.destroy();
-            const color = isUp ? '#3b82f6' : '#ef4444'; 
             priceChart = new Chart(ctx, {
                 type: 'line',
-                data: { labels: dates, datasets: [{ data: prices, borderColor: color, borderWidth: 2, pointRadius: 0, tension: 0.1, fill: true, backgroundColor: isUp ? 'rgba(59, 130, 246, 0.1)' : 'rgba(239, 68, 68, 0.1)' }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } }, scales: { x: { display: false }, y: { display: true, position: 'right', grid: { color: '#1e293b' }, ticks: { color: '#64748b', font: { size: 10 } } } }, interaction: { mode: 'nearest', axis: 'x', intersect: false } }
-            });
-        }
-
-        function renderBacktestChart(curveData) {
-            const ctx = document.getElementById('backtestChart').getContext('2d');
-            if (btChart) btChart.destroy();
-            const color = curveData.length > 0 && curveData[curveData.length-1] >= curveData[0] ? '#10b981' : '#ef4444';
-            btChart = new Chart(ctx, {
-                type: 'line',
-                data: { labels: Array(curveData.length).fill(''), datasets: [{ data: curveData, borderColor: color, borderWidth: 1.5, pointRadius: 0, tension: 0.1 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
+                data: { labels: dates, datasets: [{ data: prices, borderColor: isUp ? '#3b82f6' : '#ef4444', borderWidth: 2, pointRadius: 0, tension: 0.1, fill: true, backgroundColor: isUp ? 'rgba(59, 130, 246, 0.1)' : 'rgba(239, 68, 68, 0.1)' }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } }, interaction: { mode: 'index', intersect: false } }
             });
         }
     </script>
